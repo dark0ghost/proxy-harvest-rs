@@ -1,5 +1,5 @@
 use proxy_harvest_rs::config::{outbound, routing};
-use proxy_harvest_rs::parser::{parse_servers, ServerConfig};
+use proxy_harvest_rs::parser::{ServerConfig, parse_servers};
 
 const SAMPLE_SERVERS: &str = r#"
 ss://Y2hhY2hhMjAtaWV0Zi1wb2x5MTMwNTpUWTI5bWJaYmdwbGhjNHZUVDN4aDNz@62.133.60.43:36456#test-ss-server
