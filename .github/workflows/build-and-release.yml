@@ -14,9 +14,6 @@ on:
       - main
       - master
 
-env:
-  SOURCE_URL: 'https://raw.githubusercontent.com/STR97/STRUGOV/refs/heads/main/STR.BYPASS'
-
 jobs:
   build-and-release:
     runs-on: ubuntu-latest
