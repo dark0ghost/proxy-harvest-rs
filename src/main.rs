@@ -24,6 +24,7 @@ struct Args {
     timeout: u64,
 }
 
+#[allow(dead_code)]
 fn main() -> Result<()> {
     env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
 
