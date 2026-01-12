@@ -1,6 +1,6 @@
 use crate::parser::ServerConfig;
 use anyhow::Result;
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 
 pub fn generate_routing(servers: &[ServerConfig]) -> Result<Value> {
     // Separate servers into different categories
