@@ -1,0 +1,139 @@
+name: Build and Release Xray Configs
+
+on:
+  # Run on schedule (every day at 00:00 UTC)
+  schedule:
+    - cron: '0 0 * * *'
+
+  # Allow manual trigger
+  workflow_dispatch:
+
+  # Run on push to main
+  push:
+    branches:
+      - main
+      - master
+
+env:
+  SOURCE_URL: 'https://raw.githubusercontent.com/STR97/STRUGOV/refs/heads/main/STR.BYPASS'
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Rust toolchain
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          toolchain: stable
+
+      - name: Cache Cargo dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
+
+      - name: Build release binary
+        run: cargo build --release
+
+      - name: Generate Xray configs
+        run: |
+          ./target/release/proxy-harvest-rs \
+            --url "${{ env.SOURCE_URL }}" \
+            --output ./configs
+
+      - name: List generated configs
+        run: |
+          echo "Generated config files:"
+          ls -lh ./configs/
+          echo ""
+          echo "Config file sizes:"
+          du -h ./configs/*
+
+      - name: Create archive with configs
+        run: |
+          cd configs
+          tar -czf ../xray-configs.tar.gz *.json
+          cd ..
+          zip -j xray-configs.zip configs/*.json
+
+      - name: Generate release tag
+        id: tag
+        run: |
+          TAG="release-$(date +'%Y%m%d-%H%M%S')"
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
+          echo "date=$(date +'%Y-%m-%d %H:%M:%S UTC')" >> $GITHUB_OUTPUT
+
+      - name: Count servers
+        id: stats
+        run: |
+          OUTBOUNDS_COUNT=$(jq '.outbounds | length' configs/04_outbounds.json)
+          WARP_COUNT=$(jq '[.routing.balancers[] | select(.tag == "warp-balance") | .selector[]] | length' configs/05_routing.json)
+          CLOUDFLARE_COUNT=$(jq '[.routing.balancers[] | select(.tag == "claude-balance") | .selector[]] | length' configs/05_routing.json)
+          PROXY_COUNT=$(jq '[.routing.balancers[] | select(.tag == "proxy-balance") | .selector[]] | length' configs/05_routing.json)
+
+          echo "outbounds=$OUTBOUNDS_COUNT" >> $GITHUB_OUTPUT
+          echo "warp=$WARP_COUNT" >> $GITHUB_OUTPUT
+          echo "cloudflare=$CLOUDFLARE_COUNT" >> $GITHUB_OUTPUT
+          echo "proxy=$PROXY_COUNT" >> $GITHUB_OUTPUT
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.tag.outputs.tag }}
+          name: "Xray Configs - ${{ steps.tag.outputs.date }}"
+          body: |
+            ## 📦 Xray Configuration Files
+
+            Automatically generated Xray configuration files from upstream source.
+
+            ### 📊 Statistics
+            - **Total Outbounds**: ${{ steps.stats.outputs.outbounds }}
+            - **WARP Servers**: ${{ steps.stats.outputs.warp }}
+            - **Cloudflare Servers**: ${{ steps.stats.outputs.cloudflare }}
+            - **Proxy Servers**: ${{ steps.stats.outputs.proxy }}
+
+            ### 📁 Files
+            - `04_outbounds.json` - Outbound server configurations
+            - `05_routing.json` - Routing rules and load balancers
+            - `xray-configs.tar.gz` - Compressed archive (tar.gz)
+            - `xray-configs.zip` - Compressed archive (zip)
+
+            ### 🔄 Source
+            Configs generated from: `${{ env.SOURCE_URL }}`
+
+            ### 🕐 Generation Time
+            ${{ steps.tag.outputs.date }}
+
+            ---
+            🤖 Generated with [proxy-harvest-rs](https://github.com/${{ github.repository }})
+          files: |
+            configs/04_outbounds.json
+            configs/05_routing.json
+            xray-configs.tar.gz
+            xray-configs.zip
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Clean up old releases
+        uses: dev-drprasad/delete-older-releases@v0.3.4
+        with:
+          keep_latest: 7
+          delete_tags: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
