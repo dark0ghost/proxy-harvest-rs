@@ -1,10 +1,13 @@
-pub mod config;
-pub mod parser;
+mod config;
+mod parser;
 
 use anyhow::Result;
 use clap::Parser;
 use log::info;
 use std::path::PathBuf;
+
+const OUTBOUND_FILE_NAME: &str = "04_outbounds.json";
+const ROUTING_FILE_NAME: &str = "05_routing.json";
 
 #[derive(Parser, Debug)]
 #[command(name = "xray-config-generator")]
@@ -45,8 +48,8 @@ fn main() -> Result<()> {
     let routing = config::routing::generate_routing(&servers)?;
 
     // Write configuration files
-    let outbounds_path = args.output.join("04_outbounds.json");
-    let routing_path = args.output.join("05_routing.json");
+    let outbounds_path = args.output.join(OUTBOUND_FILE_NAME);
+    let routing_path = args.output.join(ROUTING_FILE_NAME);
 
     config::write_config(&outbounds_path, &outbounds)?;
     config::write_config(&routing_path, &routing)?;
