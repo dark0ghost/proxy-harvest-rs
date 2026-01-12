@@ -186,25 +186,25 @@ pub fn generate_outbounds(servers: &[ServerConfig]) -> Result<Value> {
 
                 stream_settings["security"] = json!(security_type);
 
-                if security_type == "tls" {
-                    if let Some(tls) = &**tls_settings {
-                        let mut tls_settings_json = json!({
-                            "serverName": tls.server_name,
-                            "allowInsecure": *allow_insecure || tls.allow_insecure
-                        });
+                if security_type == "tls"
+                    && let Some(tls) = &**tls_settings
+                {
+                    let mut tls_settings_json = json!({
+                        "serverName": tls.server_name,
+                        "allowInsecure": *allow_insecure || tls.allow_insecure
+                    });
 
-                        if !tls.fingerprint.is_empty() && tls.fingerprint != "none" {
-                            tls_settings_json["fingerprint"] = json!(tls.fingerprint);
-                        }
-
-                        if let Some(ref alpn) = tls.alpn {
-                            if !alpn.is_empty() {
-                                tls_settings_json["alpn"] = json!(alpn);
-                            }
-                        }
-
-                        stream_settings["tlsSettings"] = tls_settings_json;
+                    if !tls.fingerprint.is_empty() && tls.fingerprint != "none" {
+                        tls_settings_json["fingerprint"] = json!(tls.fingerprint);
                     }
+
+                    if let Some(ref alpn) = tls.alpn
+                        && !alpn.is_empty()
+                    {
+                        tls_settings_json["alpn"] = json!(alpn);
+                    }
+
+                    stream_settings["tlsSettings"] = tls_settings_json;
                 }
 
                 // Add network settings
@@ -276,25 +276,25 @@ pub fn generate_outbounds(servers: &[ServerConfig]) -> Result<Value> {
                 });
 
                 // Add TLS settings
-                if security == "tls" {
-                    if let Some(tls) = &**tls_settings {
-                        let mut tls_settings_json = json!({
-                            "serverName": tls.server_name,
-                            "allowInsecure": *allow_insecure || tls.allow_insecure
-                        });
+                if security == "tls"
+                    && let Some(tls) = &**tls_settings
+                {
+                    let mut tls_settings_json = json!({
+                        "serverName": tls.server_name,
+                        "allowInsecure": *allow_insecure || tls.allow_insecure
+                    });
 
-                        if !tls.fingerprint.is_empty() && tls.fingerprint != "none" {
-                            tls_settings_json["fingerprint"] = json!(tls.fingerprint);
-                        }
-
-                        if let Some(ref alpn) = tls.alpn {
-                            if !alpn.is_empty() {
-                                tls_settings_json["alpn"] = json!(alpn);
-                            }
-                        }
-
-                        stream_settings["tlsSettings"] = tls_settings_json;
+                    if !tls.fingerprint.is_empty() && tls.fingerprint != "none" {
+                        tls_settings_json["fingerprint"] = json!(tls.fingerprint);
                     }
+
+                    if let Some(ref alpn) = tls.alpn
+                        && !alpn.is_empty()
+                    {
+                        tls_settings_json["alpn"] = json!(alpn);
+                    }
+
+                    stream_settings["tlsSettings"] = tls_settings_json;
                 }
 
                 // Add network settings
