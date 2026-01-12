@@ -49,7 +49,7 @@ jobs:
       - name: Generate Xray configs
         run: |
           ./target/release/proxy-harvest-rs \
-            --url "${{ env.SOURCE_URL }}" \
+            --url "$SOURCE_URL" \
             --output ./configs
 
       - name: List generated configs
