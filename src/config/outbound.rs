@@ -1,6 +1,6 @@
 use crate::parser::{NetworkSettings, ServerConfig};
 use anyhow::Result;
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 
 pub fn generate_outbounds(servers: &[ServerConfig]) -> Result<Value> {
     let mut outbounds = Vec::new();
@@ -70,7 +70,7 @@ pub fn generate_outbounds(servers: &[ServerConfig]) -> Result<Value> {
                 });
 
                 // Add TLS/Reality settings
-                if let Some(tls) =  &**tls_settings {
+                if let Some(tls) = &**tls_settings {
                     if security == "reality" {
                         let mut reality_settings = json!({
                             "fingerprint": tls.fingerprint,
