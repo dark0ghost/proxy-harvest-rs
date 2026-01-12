@@ -1,6 +1,10 @@
 name: Build and Release Xray Configs
 
 on:
+  # Run on schedule (every day at 00:00 UTC)
+  schedule:
+    - cron: '0 0 * * *'
+
   # Allow manual trigger
   workflow_dispatch:
 
@@ -9,6 +13,9 @@ on:
     branches:
       - main
       - master
+
+env:
+  SOURCE_URL: 'https://raw.githubusercontent.com/STR97/STRUGOV/refs/heads/main/STR.BYPASS'
 
 jobs:
   build-and-release:
@@ -45,7 +52,7 @@ jobs:
       - name: Generate Xray configs
         run: |
           ./target/release/proxy-harvest-rs \
-            --url "${{ SOURCE_URL }}" \
+            --url "${{ env.SOURCE_URL }}" \
             --output ./configs
 
       - name: List generated configs
