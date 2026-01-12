@@ -27,7 +27,7 @@ pub enum ServerConfig {
         network: String,
         security: String,
         // TLS/Reality settings
-        tls_settings: Option<TlsSettings>,
+        tls_settings: Box<Option<TlsSettings>>,
         // Network settings (ws, grpc, tcp)
         network_settings: Option<NetworkSettings>,
     },
@@ -192,11 +192,11 @@ fn parse_vless(url: &str, idx: usize) -> Result<ServerConfig> {
         .to_string();
 
     // Parse TLS/Reality settings
-    let tls_settings = if security == "tls" || security == "reality" {
+    let tls_settings = Box::new(if security == "tls" || security == "reality" {
         Some(parse_tls_settings(&params, &security)?)
     } else {
         None
-    };
+    });
 
     // Parse network settings
     let network_settings = parse_network_settings(&params, &network)?;

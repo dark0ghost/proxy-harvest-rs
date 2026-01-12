@@ -226,7 +226,7 @@ mod tests {
             flow: "".to_string(),
             network: "tcp".to_string(),
             security: "tls".to_string(),
-            tls_settings: None,
+            tls_settings: Box::new(None),
             network_settings: None,
         }];
 
@@ -341,7 +341,7 @@ mod tests {
                 flow: "".to_string(),
                 network: "tcp".to_string(),
                 security: "tls".to_string(),
-                tls_settings: None,
+                tls_settings: Box::new(None),
                 network_settings: None,
             },
             ServerConfig::Shadowsocks {

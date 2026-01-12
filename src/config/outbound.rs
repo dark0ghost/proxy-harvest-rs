@@ -70,7 +70,7 @@ pub fn generate_outbounds(servers: &[ServerConfig]) -> Result<Value> {
                 });
 
                 // Add TLS/Reality settings
-                if let Some(tls) = tls_settings {
+                if let Some(tls) =  &**tls_settings {
                     if security == "reality" {
                         let mut reality_settings = json!({
                             "fingerprint": tls.fingerprint,
@@ -205,7 +205,7 @@ mod tests {
             flow: "xtls-rprx-vision".to_string(),
             network: "tcp".to_string(),
             security: "reality".to_string(),
-            tls_settings: Some(TlsSettings {
+            tls_settings: Box::new(Some(TlsSettings {
                 server_name: "example.com".to_string(),
                 fingerprint: "chrome".to_string(),
                 alpn: None,
@@ -213,7 +213,7 @@ mod tests {
                 public_key: Some("test-key".to_string()),
                 short_id: Some("test-id".to_string()),
                 spider_x: Some("/".to_string()),
-            }),
+            })),
             network_settings: Some(NetworkSettings::Tcp {
                 header_type: "none".to_string(),
             }),
@@ -272,7 +272,7 @@ mod tests {
             flow: "".to_string(),
             network: "ws".to_string(),
             security: "tls".to_string(),
-            tls_settings: Some(TlsSettings {
+            tls_settings: Box::new(Some(TlsSettings {
                 server_name: "example.com".to_string(),
                 fingerprint: "chrome".to_string(),
                 alpn: Some(vec!["h2".to_string(), "http/1.1".to_string()]),
@@ -280,7 +280,7 @@ mod tests {
                 public_key: None,
                 short_id: None,
                 spider_x: None,
-            }),
+            })),
             network_settings: Some(NetworkSettings::WebSocket {
                 path: "/ws".to_string(),
                 host: "example.com".to_string(),
