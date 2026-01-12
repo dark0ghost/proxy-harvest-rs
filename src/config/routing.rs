@@ -1,6 +1,6 @@
+use crate::parser::ServerConfig;
 use anyhow::Result;
 use serde_json::{json, Value};
-use crate::parser::ServerConfig;
 
 pub fn generate_routing(servers: &[ServerConfig]) -> Result<Value> {
     // Separate servers into different categories
@@ -194,7 +194,7 @@ mod tests {
                 port: 8388,
                 method: "aes-256-gcm".to_string(),
                 password: "test".to_string(),
-            }
+            },
         ];
 
         let result = generate_routing(&servers);
@@ -206,7 +206,8 @@ mod tests {
         // Should have warp-balance and proxy-balance
         assert_eq!(balancers.len(), 2);
 
-        let warp_balance = balancers.iter()
+        let warp_balance = balancers
+            .iter()
             .find(|b| b["tag"] == "warp-balance")
             .expect("warp-balance not found");
 
@@ -216,20 +217,18 @@ mod tests {
 
     #[test]
     fn test_generate_routing_with_cloudflare_servers() {
-        let servers = vec![
-            ServerConfig::Vless {
-                tag: "cf-server".to_string(),
-                address: "104.18.82.55".to_string(),
-                port: 443,
-                id: "test-uuid".to_string(),
-                encryption: "none".to_string(),
-                flow: "".to_string(),
-                network: "tcp".to_string(),
-                security: "tls".to_string(),
-                tls_settings: None,
-                network_settings: None,
-            }
-        ];
+        let servers = vec![ServerConfig::Vless {
+            tag: "cf-server".to_string(),
+            address: "104.18.82.55".to_string(),
+            port: 443,
+            id: "test-uuid".to_string(),
+            encryption: "none".to_string(),
+            flow: "".to_string(),
+            network: "tcp".to_string(),
+            security: "tls".to_string(),
+            tls_settings: None,
+            network_settings: None,
+        }];
 
         let result = generate_routing(&servers);
         assert!(result.is_ok());
@@ -238,7 +237,8 @@ mod tests {
         let balancers = config["routing"]["balancers"].as_array().unwrap();
 
         // Should have claude-balance
-        let claude_balance = balancers.iter()
+        let claude_balance = balancers
+            .iter()
             .find(|b| b["tag"] == "claude-balance")
             .expect("claude-balance not found");
 
@@ -270,7 +270,8 @@ mod tests {
         assert!(ads_rule["domain"].as_array().unwrap().len() > 0);
 
         // Check local IPs rule
-        let local_rule = rules.iter()
+        let local_rule = rules
+            .iter()
             .find(|r| r["ip"].is_array() && r["outboundTag"] == "direct")
             .expect("Local IPs rule not found");
 
@@ -282,15 +283,13 @@ mod tests {
     #[test]
     fn test_generate_routing_default_tag() {
         // Test with only proxy servers
-        let proxy_servers = vec![
-            ServerConfig::Shadowsocks {
-                tag: "proxy1".to_string(),
-                address: "1.2.3.4".to_string(),
-                port: 8388,
-                method: "aes-256-gcm".to_string(),
-                password: "test".to_string(),
-            }
-        ];
+        let proxy_servers = vec![ServerConfig::Shadowsocks {
+            tag: "proxy1".to_string(),
+            address: "1.2.3.4".to_string(),
+            port: 8388,
+            method: "aes-256-gcm".to_string(),
+            password: "test".to_string(),
+        }];
 
         let result = generate_routing(&proxy_servers).unwrap();
         let rules = result["routing"]["rules"].as_array().unwrap();
@@ -298,8 +297,8 @@ mod tests {
 
         // When proxy servers exist, default should use proxy-balance
         assert!(
-            default_rule["outboundTag"] == "proxy-balance" ||
-            default_rule["balancerTag"] == "proxy-balance"
+            default_rule["outboundTag"] == "proxy-balance"
+                || default_rule["balancerTag"] == "proxy-balance"
         );
     }
 
@@ -351,7 +350,7 @@ mod tests {
                 port: 8388,
                 method: "aes-256-gcm".to_string(),
                 password: "test".to_string(),
-            }
+            },
         ];
 
         let result = generate_routing(&servers);
@@ -363,7 +362,8 @@ mod tests {
         // Should have all three balancers
         assert_eq!(balancers.len(), 3);
 
-        let tags: Vec<&str> = balancers.iter()
+        let tags: Vec<&str> = balancers
+            .iter()
             .map(|b| b["tag"].as_str().unwrap())
             .collect();
 

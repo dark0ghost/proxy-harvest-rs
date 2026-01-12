@@ -1,4 +1,4 @@
-use anyhow::{Result, Context};
+use anyhow::{Context, Result};
 use base64::prelude::*;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
@@ -116,9 +116,7 @@ fn parse_server_url(url: &str, idx: usize) -> Result<ServerConfig> {
 fn parse_shadowsocks(url: &str, idx: usize) -> Result<ServerConfig> {
     // Format: ss://base64(method:password)@host:port#tag
     let re = Regex::new(r"^ss://([^@]+)@([^:]+):(\d+)(?:#(.*))?$")?;
-    let caps = re
-        .captures(url)
-        .context("Invalid shadowsocks URL format")?;
+    let caps = re.captures(url).context("Invalid shadowsocks URL format")?;
 
     let encoded = caps.get(1).unwrap().as_str();
     let host = caps.get(2).unwrap().as_str().to_string();
@@ -177,7 +175,11 @@ fn parse_vless(url: &str, idx: usize) -> Result<ServerConfig> {
         .map(|s| s.as_str())
         .unwrap_or("none")
         .to_string();
-    let flow = params.get("flow").map(|s| s.as_str()).unwrap_or("").to_string();
+    let flow = params
+        .get("flow")
+        .map(|s| s.as_str())
+        .unwrap_or("")
+        .to_string();
     let network = params
         .get("type")
         .map(|s| s.as_str())
@@ -229,10 +231,7 @@ fn parse_query(query: &str) -> Result<HashMap<String, String>> {
 }
 
 fn parse_tls_settings(params: &HashMap<String, String>, security: &str) -> Result<TlsSettings> {
-    let server_name = params
-        .get("sni")
-        .map(|s| s.to_string())
-        .unwrap_or_default();
+    let server_name = params.get("sni").map(|s| s.to_string()).unwrap_or_default();
     let fingerprint = params
         .get("fp")
         .map(|s| s.to_string())
@@ -262,7 +261,10 @@ fn parse_tls_settings(params: &HashMap<String, String>, security: &str) -> Resul
     };
 
     let spider_x = if security == "reality" {
-        params.get("spx").or_else(|| params.get("path")).map(|s| s.to_string())
+        params
+            .get("spx")
+            .or_else(|| params.get("path"))
+            .map(|s| s.to_string())
     } else {
         None
     };
@@ -381,7 +383,13 @@ mod tests {
         let server = result.unwrap();
 
         match server {
-            ServerConfig::Shadowsocks { tag, address, port, method, password } => {
+            ServerConfig::Shadowsocks {
+                tag,
+                address,
+                port,
+                method,
+                password,
+            } => {
                 assert_eq!(tag, "test-server");
                 assert_eq!(address, "62.133.60.43");
                 assert_eq!(port, 36456);
@@ -411,7 +419,16 @@ mod tests {
         let server = result.unwrap();
 
         match server {
-            ServerConfig::Vless { tag, address, port, id, security, network, tls_settings, .. } => {
+            ServerConfig::Vless {
+                tag,
+                address,
+                port,
+                id,
+                security,
+                network,
+                tls_settings,
+                ..
+            } => {
                 // Tag gets sanitized to lowercase
                 assert_eq!(tag, "test-vless");
                 assert_eq!(address, "example.com");
@@ -439,7 +456,12 @@ mod tests {
         let server = result.unwrap();
 
         match server {
-            ServerConfig::Vless { network, security, network_settings, .. } => {
+            ServerConfig::Vless {
+                network,
+                security,
+                network_settings,
+                ..
+            } => {
                 assert_eq!(security, "tls");
                 assert_eq!(network, "ws");
 
@@ -538,7 +560,10 @@ vless://test-uuid@example.com:443?encryption=none#another-valid
         assert_eq!(sanitize_tag("test@#$%server", "ss", 0, false), "testserver");
         // Cyrillic characters are allowed by is_alphanumeric
         assert_eq!(sanitize_tag("тест сервер", "ss", 0, false), "тест-сервер");
-        assert_eq!(sanitize_tag("Test Server 123", "ss", 0, false), "test-server-123");
+        assert_eq!(
+            sanitize_tag("Test Server 123", "ss", 0, false),
+            "test-server-123"
+        );
         assert_eq!(sanitize_tag("@#$%", "ss", 5, false), "ss-5"); // Only special chars, should fallback
     }
 
@@ -576,7 +601,8 @@ vless://test-uuid@example.com:443?encryption=none#another-valid
 
     #[test]
     fn test_empty_tag_fallback() {
-        let url = "ss://Y2hhY2hhMjAtaWV0Zi1wb2x5MTMwNTpUWTI5bWJaYmdwbGhjNHZUVDN4aDNz@62.133.60.43:36456";
+        let url =
+            "ss://Y2hhY2hhMjAtaWV0Zi1wb2x5MTMwNTpUWTI5bWJaYmdwbGhjNHZUVDN4aDNz@62.133.60.43:36456";
         let result = parse_server_url(url, 5);
 
         assert!(result.is_ok());

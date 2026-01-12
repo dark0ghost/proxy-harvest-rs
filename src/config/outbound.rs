@@ -1,6 +1,6 @@
+use crate::parser::{NetworkSettings, ServerConfig};
 use anyhow::Result;
 use serde_json::{json, Value};
-use crate::parser::{ServerConfig, NetworkSettings};
 
 pub fn generate_outbounds(servers: &[ServerConfig]) -> Result<Value> {
     let mut outbounds = Vec::new();
@@ -164,19 +164,17 @@ pub fn generate_outbounds(servers: &[ServerConfig]) -> Result<Value> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::parser::{ServerConfig, TlsSettings, NetworkSettings};
+    use crate::parser::{NetworkSettings, ServerConfig, TlsSettings};
 
     #[test]
     fn test_generate_outbounds_shadowsocks() {
-        let servers = vec![
-            ServerConfig::Shadowsocks {
-                tag: "test-ss".to_string(),
-                address: "1.2.3.4".to_string(),
-                port: 8388,
-                method: "aes-256-gcm".to_string(),
-                password: "test-password".to_string(),
-            }
-        ];
+        let servers = vec![ServerConfig::Shadowsocks {
+            tag: "test-ss".to_string(),
+            address: "1.2.3.4".to_string(),
+            port: 8388,
+            method: "aes-256-gcm".to_string(),
+            password: "test-password".to_string(),
+        }];
 
         let result = generate_outbounds(&servers);
         assert!(result.is_ok());
@@ -198,30 +196,28 @@ mod tests {
 
     #[test]
     fn test_generate_outbounds_vless_reality() {
-        let servers = vec![
-            ServerConfig::Vless {
-                tag: "test-vless".to_string(),
-                address: "example.com".to_string(),
-                port: 443,
-                id: "test-uuid".to_string(),
-                encryption: "none".to_string(),
-                flow: "xtls-rprx-vision".to_string(),
-                network: "tcp".to_string(),
-                security: "reality".to_string(),
-                tls_settings: Some(TlsSettings {
-                    server_name: "example.com".to_string(),
-                    fingerprint: "chrome".to_string(),
-                    alpn: None,
-                    allow_insecure: false,
-                    public_key: Some("test-key".to_string()),
-                    short_id: Some("test-id".to_string()),
-                    spider_x: Some("/".to_string()),
-                }),
-                network_settings: Some(NetworkSettings::Tcp {
-                    header_type: "none".to_string(),
-                }),
-            }
-        ];
+        let servers = vec![ServerConfig::Vless {
+            tag: "test-vless".to_string(),
+            address: "example.com".to_string(),
+            port: 443,
+            id: "test-uuid".to_string(),
+            encryption: "none".to_string(),
+            flow: "xtls-rprx-vision".to_string(),
+            network: "tcp".to_string(),
+            security: "reality".to_string(),
+            tls_settings: Some(TlsSettings {
+                server_name: "example.com".to_string(),
+                fingerprint: "chrome".to_string(),
+                alpn: None,
+                allow_insecure: false,
+                public_key: Some("test-key".to_string()),
+                short_id: Some("test-id".to_string()),
+                spider_x: Some("/".to_string()),
+            }),
+            network_settings: Some(NetworkSettings::Tcp {
+                header_type: "none".to_string(),
+            }),
+        }];
 
         let result = generate_outbounds(&servers);
         assert!(result.is_ok());
@@ -233,8 +229,14 @@ mod tests {
         assert_eq!(vless["tag"], "test-vless");
         assert_eq!(vless["protocol"], "vless");
         assert_eq!(vless["streamSettings"]["security"], "reality");
-        assert_eq!(vless["streamSettings"]["realitySettings"]["publicKey"], "test-key");
-        assert_eq!(vless["streamSettings"]["realitySettings"]["shortId"], "test-id");
+        assert_eq!(
+            vless["streamSettings"]["realitySettings"]["publicKey"],
+            "test-key"
+        );
+        assert_eq!(
+            vless["streamSettings"]["realitySettings"]["shortId"],
+            "test-id"
+        );
     }
 
     #[test]
@@ -261,31 +263,29 @@ mod tests {
 
     #[test]
     fn test_generate_outbounds_vless_websocket() {
-        let servers = vec![
-            ServerConfig::Vless {
-                tag: "ws-server".to_string(),
-                address: "example.com".to_string(),
-                port: 443,
-                id: "test-uuid".to_string(),
-                encryption: "none".to_string(),
-                flow: "".to_string(),
-                network: "ws".to_string(),
-                security: "tls".to_string(),
-                tls_settings: Some(TlsSettings {
-                    server_name: "example.com".to_string(),
-                    fingerprint: "chrome".to_string(),
-                    alpn: Some(vec!["h2".to_string(), "http/1.1".to_string()]),
-                    allow_insecure: true,
-                    public_key: None,
-                    short_id: None,
-                    spider_x: None,
-                }),
-                network_settings: Some(NetworkSettings::WebSocket {
-                    path: "/ws".to_string(),
-                    host: "example.com".to_string(),
-                }),
-            }
-        ];
+        let servers = vec![ServerConfig::Vless {
+            tag: "ws-server".to_string(),
+            address: "example.com".to_string(),
+            port: 443,
+            id: "test-uuid".to_string(),
+            encryption: "none".to_string(),
+            flow: "".to_string(),
+            network: "ws".to_string(),
+            security: "tls".to_string(),
+            tls_settings: Some(TlsSettings {
+                server_name: "example.com".to_string(),
+                fingerprint: "chrome".to_string(),
+                alpn: Some(vec!["h2".to_string(), "http/1.1".to_string()]),
+                allow_insecure: true,
+                public_key: None,
+                short_id: None,
+                spider_x: None,
+            }),
+            network_settings: Some(NetworkSettings::WebSocket {
+                path: "/ws".to_string(),
+                host: "example.com".to_string(),
+            }),
+        }];
 
         let result = generate_outbounds(&servers);
         assert!(result.is_ok());
