@@ -1,10 +1,6 @@
 name: Build and Release Xray Configs
 
 on:
-  # Run on schedule (every day at 00:00 UTC)
-  schedule:
-    - cron: '0 0 * * *'
-
   # Allow manual trigger
   workflow_dispatch:
 
