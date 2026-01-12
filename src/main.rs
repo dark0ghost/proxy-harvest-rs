@@ -1,5 +1,5 @@
-mod config;
-mod parser;
+pub mod config;
+pub mod parser;
 
 use anyhow::Result;
 use clap::Parser;
