@@ -1,9 +1,9 @@
 use anyhow::{Context, Result};
+use base64::Engine;
 use base64::prelude::{BASE64_STANDARD, BASE64_URL_SAFE, BASE64_URL_SAFE_NO_PAD};
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use base64::Engine;
 use urlencoding::decode;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -136,7 +136,10 @@ impl ServerConfig {
 
     pub fn is_cloudflare(&self) -> bool {
         match self {
-            ServerConfig::Vless { address, .. } | ServerConfig::Vmess { address, .. } | ServerConfig::Trojan { address, .. } | ServerConfig::Hysteria2 { address, .. } => {
+            ServerConfig::Vless { address, .. }
+            | ServerConfig::Vmess { address, .. }
+            | ServerConfig::Trojan { address, .. }
+            | ServerConfig::Hysteria2 { address, .. } => {
                 let addr = address.to_lowercase();
                 addr.starts_with("104.") || addr.contains("cloudflare") || addr.contains("cdn")
             }
@@ -190,7 +193,9 @@ fn parse_shadowsocks(url: &str, idx: usize) -> Result<ServerConfig> {
     let url_part = url.trim_start_matches("ss://");
 
     // Find the first '@' that separates credentials from host:port
-    let at_pos = url_part.find('@').context("Invalid shadowsocks URL format: missing @")?;
+    let at_pos = url_part
+        .find('@')
+        .context("Invalid shadowsocks URL format: missing @")?;
     let encoded_part = &url_part[..at_pos];
     let rest_part = &url_part[at_pos + 1..];
 
@@ -236,7 +241,8 @@ fn parse_shadowsocks(url: &str, idx: usize) -> Result<ServerConfig> {
             _ => encoded_part.to_string(),
         };
         BASE64_STANDARD.decode(padded)
-    }.context("Failed to decode base64")?;
+    }
+    .context("Failed to decode base64")?;
 
     let decoded_str = String::from_utf8(decoded)?;
 
@@ -345,7 +351,8 @@ fn parse_vmess(url: &str, idx: usize) -> Result<ServerConfig> {
         BASE64_URL_SAFE.decode(base64_data)
     } else {
         BASE64_STANDARD.decode(base64_data)
-    }.context("Failed to decode vmess base64")?;
+    }
+    .context("Failed to decode vmess base64")?;
 
     let json_str = String::from_utf8(decoded_data)?;
     let config: VmessConfig = serde_json::from_str(&json_str)?;
@@ -356,8 +363,14 @@ fn parse_vmess(url: &str, idx: usize) -> Result<ServerConfig> {
         format!("vmess-{}", idx)
     };
 
-    let port: u16 = config.port.parse().context("Invalid port in vmess config")?;
-    let alter_id: u16 = config.aid.parse().context("Invalid alterId in vmess config")?;
+    let port: u16 = config
+        .port
+        .parse()
+        .context("Invalid port in vmess config")?;
+    let alter_id: u16 = config
+        .aid
+        .parse()
+        .context("Invalid alterId in vmess config")?;
 
     let network = config.net.to_lowercase();
     let security = config.scy.to_lowercase();
@@ -386,7 +399,11 @@ fn parse_vmess(url: &str, idx: usize) -> Result<ServerConfig> {
 
     // Parse TLS settings
     let is_tls = config.tls.as_ref().map(|s| s == "tls").unwrap_or(false);
-    let allow_insecure = config.insecure.as_ref().map(|s| s == "1" || s == "true").unwrap_or(false);
+    let allow_insecure = config
+        .insecure
+        .as_ref()
+        .map(|s| s == "1" || s == "true")
+        .unwrap_or(false);
 
     let tls_settings = Box::new(if is_tls {
         let server_name = config.sni.unwrap_or_default();
@@ -519,7 +536,9 @@ fn parse_hysteria2(url: &str, idx: usize) -> Result<ServerConfig> {
         None => {
             // Try format without query parameters
             let re_simple = Regex::new(r"^hysteria2://([^@]+)@([^:]+):(\d+)(?:#(.*))?$")?;
-            re_simple.captures(url).context("Invalid hysteria2 URL format")?
+            re_simple
+                .captures(url)
+                .context("Invalid hysteria2 URL format")?
         }
     };
 
@@ -702,7 +721,9 @@ fn sanitize_tag(tag: &str, protocol: &str, idx: usize, is_warp: bool) -> String 
     // Remove emojis and special characters, keep alphanumeric and common separators
     let cleaned: String = tag
         .chars()
-        .filter(|c| c.is_alphanumeric() || *c == '-' || *c == '_' || *c == ' ' || *c == '@' || *c == '|')
+        .filter(|c| {
+            c.is_alphanumeric() || *c == '-' || *c == '_' || *c == ' ' || *c == '@' || *c == '|'
+        })
         .collect();
 
     let cleaned = cleaned.trim();

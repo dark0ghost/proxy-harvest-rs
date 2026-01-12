@@ -561,7 +561,10 @@ mod tests {
         assert_eq!(vmess["settings"]["vnext"][0]["port"], 443);
         assert_eq!(vmess["settings"]["vnext"][0]["users"][0]["id"], "test-uuid");
         assert_eq!(vmess["settings"]["vnext"][0]["users"][0]["alterId"], 0);
-        assert_eq!(vmess["settings"]["vnext"][0]["users"][0]["security"], "auto");
+        assert_eq!(
+            vmess["settings"]["vnext"][0]["users"][0]["security"],
+            "auto"
+        );
     }
 
     #[test]
@@ -602,9 +605,18 @@ mod tests {
         assert_eq!(vmess["streamSettings"]["network"], "ws");
         assert_eq!(vmess["streamSettings"]["security"], "tls");
         assert_eq!(vmess["streamSettings"]["wsSettings"]["path"], "/websocket");
-        assert_eq!(vmess["streamSettings"]["wsSettings"]["headers"]["Host"], "example.com");
-        assert_eq!(vmess["streamSettings"]["tlsSettings"]["serverName"], "example.com");
-        assert_eq!(vmess["streamSettings"]["tlsSettings"]["alpn"][0], "http/1.1");
+        assert_eq!(
+            vmess["streamSettings"]["wsSettings"]["headers"]["Host"],
+            "example.com"
+        );
+        assert_eq!(
+            vmess["streamSettings"]["tlsSettings"]["serverName"],
+            "example.com"
+        );
+        assert_eq!(
+            vmess["streamSettings"]["tlsSettings"]["alpn"][0],
+            "http/1.1"
+        );
     }
 
     #[test]
@@ -640,7 +652,10 @@ mod tests {
         assert_eq!(trojan["protocol"], "trojan");
         assert_eq!(trojan["settings"]["servers"][0]["address"], "example.com");
         assert_eq!(trojan["settings"]["servers"][0]["port"], 443);
-        assert_eq!(trojan["settings"]["servers"][0]["password"], "test-password");
+        assert_eq!(
+            trojan["settings"]["servers"][0]["password"],
+            "test-password"
+        );
         assert_eq!(trojan["streamSettings"]["security"], "tls");
     }
 
@@ -678,7 +693,10 @@ mod tests {
         let trojan = &outbounds[0];
         assert_eq!(trojan["streamSettings"]["network"], "ws");
         assert_eq!(trojan["streamSettings"]["wsSettings"]["path"], "/trojan");
-        assert_eq!(trojan["streamSettings"]["wsSettings"]["headers"]["Host"], "example.com");
+        assert_eq!(
+            trojan["streamSettings"]["wsSettings"]["headers"]["Host"],
+            "example.com"
+        );
     }
 
     #[test]
