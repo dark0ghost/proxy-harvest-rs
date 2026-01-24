@@ -1,98 +1,139 @@
 # Xray Config Generator
 
-CLI-утилита на Rust для генерации конфигурационных файлов Xray из списка ссылок на VPN-серверы.
+A Rust-based CLI utility for generating Xray configuration files from a list of VPN server links.
 
-## Возможности
+## Features
 
-- Парсинг URL серверов с протоколами `ss://` и `vless://`
-- Генерация конфигурационных файлов для Xray
-- Автоматическая балансировка по группам серверов (Cloudflare, WARP, остальные)
-- Логирование процесса выполнения
-- Обработка ошибок и валидация данных
+- Parses server URLs with `ss://` and `vless://` protocols
+- Generates ready-to-use Xray configuration files
+- Automatic server grouping and load balancing (Cloudflare, WARP, and others)
+- **Proxy availability checking** before adding servers to configuration
+- Configurable timeout settings for availability checks
+- Comprehensive execution logging
+- Robust error handling and data validation
 
-## Установка
+## Installation
 
 ```bash
 cargo build --release
 ```
 
-## Использование
+## Usage
 
 ```bash
 cargo run -- --url "https://raw.githubusercontent.com/STR97/STRUGOV/refs/heads/main/STR.BYPASS" --output "./configs"
 ```
 
-### Параметры
+### Parameters
 
-- `--url` - URL к файлу со списком серверов
-- `--output` - Директория для сохранения конфигурационных файлов (по умолчанию: `./configs`)
+- `--url` / `-u` - URL to the file containing server list
+- `--output` / `-o` - Directory for saving configuration files (default: `./configs`)
+- `--check-availability` / `-c` - Enable proxy availability checking before adding to configuration (default: `false`)
+- `--timeout` / `-t` - Timeout for availability checks in seconds (default: `5`)
 
-## Выходные файлы
+### Usage Examples
+
+Basic usage without availability checking:
+```bash
+cargo run -- --url "https://example.com/servers.txt" --output "./configs"
+```
+
+With availability checking (5-second timeout):
+```bash
+cargo run -- --url "https://example.com/servers.txt" --output "./configs" --check-availability
+```
+
+With availability checking and custom timeout:
+```bash
+cargo run -- --url "https://example.com/servers.txt" --output "./configs" -c -t 10
+```
+
+## Output Files
 
 ### 04_outbounds.json
-Содержит конфигурацию всех outbound-серверов:
-- Shadowsocks серверы
-- VLESS серверы с поддержкой Reality/TLS
-- Стандартные серверы `direct` и `block`
+Contains configuration for all outbound servers:
+- Shadowsocks servers
+- VLESS servers with Reality/TLS support
+- Standard `direct` and `block` outbound settings
 
 ### 05_routing.json
-Содержит правила маршрутизации и балансировщики:
-- `claude-balance` - для Cloudflare серверов
-- `warp-balance` - для WARP серверов
-- `proxy-balance` - для остальных прокси
-- Правила блокировки рекламы
-- Правила для локальных адресов
+Contains routing rules and balancers:
+- `claude-balance` - for Cloudflare servers
+- `warp-balance` - for WARP servers
+- `proxy-balance` - for remaining proxies
+- Ad-blocking rules
+- Local address routing rules
 
-## Поддерживаемые протоколы
+## Supported Protocols
 
 - **Shadowsocks** (`ss://`)
-  - Декодирование base64
-  - Все методы шифрования
+  - Base64 decoding
+  - All encryption methods
 
 - **VLESS** (`vless://`)
-  - Reality с поддержкой fingerprint, SNI, publicKey, shortId, spiderX
-  - TLS с поддержкой ALPN, fingerprint, allowInsecure
-  - WebSocket, gRPC, TCP транспорты
+  - Reality protocol with fingerprint, SNI, publicKey, shortId, spiderX support
+  - TLS with ALPN, fingerprint, and allowInsecure options
+  - WebSocket, gRPC, and TCP transports
 
-## Примеры
+## Examples
 
-Тестовые URL для проверки:
+Test URLs for validation:
 
 ```
 ss://Y2hhY2hhMjAtaWV0Zi1wb2x5MTMwNTpUWTI5bWJaYmdwbGhjNHZUVDN4aDNz@62.133.60.43:36456#TEST
 vless://uuid@host:443?encryption=none&security=reality&sni=example.com&fp=firefox&pbk=key&sid=id&type=grpc&serviceName=grpc#TEST
 ```
 
-## Логирование
+## Logging
 
-Для управления уровнем логирования используйте переменную окружения:
+Control the logging level using environment variables:
 
 ```bash
 RUST_LOG=debug cargo run -- --url "..." --output "./configs"
 ```
 
-## Структура проекта
+## Project Structure
 
 ```
 src/
-├── main.rs           # CLI и основная логика
-├── parser.rs         # Парсинг URL серверов
+├── main.rs           # CLI interface and main logic
+├── parser.rs         # Server URL parsing
+├── checker.rs        # Proxy availability checking
 └── config/
-    ├── mod.rs        # Экспорт модулей
-    ├── outbound.rs   # Генерация outbound конфигурации
-    └── routing.rs    # Генерация routing конфигурации
+    ├── mod.rs        # Module exports
+    ├── outbound.rs   # Outbound configuration generation
+    └── routing.rs    # Routing configuration generation
 ```
+
+## Proxy Availability Checking
+
+When using the `--check-availability` flag, the utility checks TCP connectivity to each proxy server:
+
+- ✓ Successful connection - server is included in the configuration
+- ✗ Failed connection - server is excluded from the configuration
+
+The logging system displays check results for each server:
+```
+✓ Server vless-server-1 is available
+✗ Server ss-server-2 is unavailable: Connection timed out
+```
+
+**Optimization:** Checks are performed in parallel using the Rayon library, significantly speeding up the process when handling large numbers of servers.
+
+**Note:** Availability checking increases configuration generation time. With parallel processing, total time ≈ timeout + DNS resolution time, rather than (number_of_servers × timeout).
 
 ## CI/CD
 
-Проект использует GitHub Actions для автоматической генерации конфигураций:
-- 🕐 Запуск по расписанию (каждый день в 00:00 UTC)
-- 🔘 Ручной запуск через GitHub UI
-- 📦 Автоматические релизы с артефактами
+The project uses GitHub Actions for automated configuration generation:
+- 🕐 Scheduled runs (daily at 00:00 UTC)
+- 🔘 Manual triggering via GitHub UI
+- 📦 Automatic releases with artifacts
+
+See details in [.github/workflows/build-and-release.yml](.github/workflows/build-and-release.yml)
 
 ## Docker
 
-Доступен multi-stage Dockerfile:
+A multi-stage Dockerfile is available:
 
 ```bash
 docker build -t xray-config-gen .
@@ -100,4 +141,3 @@ docker run --rm -v $(pwd)/output:/app/configs xray-config-gen \
   --url "https://example.com/servers.txt" \
   --output /app/configs
 ```
-
