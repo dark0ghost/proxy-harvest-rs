@@ -1,19 +1,36 @@
-use crate::parser::ServerConfig;
 use anyhow::Result;
-use serde_json::{Value, json};
+use serde_json::{json, Value};
+use crate::parser::ServerConfig;
 
+/// Generates Xray routing configuration with load balancers
+///
+/// Creates routing rules and balancers for different server categories:
+/// - WARP/Cloudflare servers (grouped together)
+/// - Regular proxy servers
+///
+/// Includes rules for DNS, ad blocking, local networks, and BitTorrent.
+///
+/// # Arguments
+///
+/// * `servers` - Slice of parsed server configurations
+///
+/// # Returns
+///
+/// JSON value containing routing configuration
+///
+/// # Errors
+///
+/// Returns an error if JSON generation fails
 pub fn generate_routing(servers: &[ServerConfig]) -> Result<Value> {
     // Separate servers into different categories
-    let mut warp_servers = Vec::new();
-    let mut cloudflare_servers = Vec::new();
+    // WARP and Cloudflare servers are grouped together
+    let mut warp_cloudflare_servers = Vec::new();
     let mut proxy_servers = Vec::new();
 
     for server in servers {
         let tag = server.tag().to_string();
-        if server.is_warp() {
-            warp_servers.push(tag);
-        } else if server.is_cloudflare() {
-            cloudflare_servers.push(tag);
+        if server.is_warp() || server.is_cloudflare() {
+            warp_cloudflare_servers.push(tag);
         } else {
             proxy_servers.push(tag);
         }
@@ -22,20 +39,10 @@ pub fn generate_routing(servers: &[ServerConfig]) -> Result<Value> {
     // Create balancers
     let mut balancers = Vec::new();
 
-    if !cloudflare_servers.is_empty() {
-        balancers.push(json!({
-            "tag": "claude-balance",
-            "selector": cloudflare_servers,
-            "strategy": {
-                "type": "leastping"
-            }
-        }));
-    }
-
-    if !warp_servers.is_empty() {
+    if !warp_cloudflare_servers.is_empty() {
         balancers.push(json!({
             "tag": "warp-balance",
-            "selector": warp_servers,
+            "selector": warp_cloudflare_servers,
             "strategy": {
                 "type": "leastping"
             }
@@ -94,16 +101,7 @@ pub fn generate_routing(servers: &[ServerConfig]) -> Result<Value> {
     let mut routing_rules = rules;
 
     // Add balancer rules
-    if !cloudflare_servers.is_empty() {
-        routing_rules.push(json!({
-            "type": "field",
-            "inboundTag": ["redirect", "tproxy"],
-            "balancerTag": "claude-balance",
-            "domain": []
-        }));
-    }
-
-    if !warp_servers.is_empty() {
+    if !warp_cloudflare_servers.is_empty() {
         routing_rules.push(json!({
             "type": "field",
             "inboundTag": ["redirect", "tproxy"],
@@ -146,12 +144,10 @@ pub fn generate_routing(servers: &[ServerConfig]) -> Result<Value> {
         ]
     }));
 
-    // Default rule - use proxy balance if available, otherwise direct
+    // Default rule - use proxy balance if available, otherwise warp, otherwise direct
     let default_tag = if !proxy_servers.is_empty() {
         "proxy-balance"
-    } else if !cloudflare_servers.is_empty() {
-        "claude-balance"
-    } else if !warp_servers.is_empty() {
+    } else if !warp_cloudflare_servers.is_empty() {
         "warp-balance"
     } else {
         "direct"
@@ -194,7 +190,7 @@ mod tests {
                 port: 8388,
                 method: "aes-256-gcm".to_string(),
                 password: "test".to_string(),
-            },
+            }
         ];
 
         let result = generate_routing(&servers);
@@ -206,8 +202,7 @@ mod tests {
         // Should have warp-balance and proxy-balance
         assert_eq!(balancers.len(), 2);
 
-        let warp_balance = balancers
-            .iter()
+        let warp_balance = balancers.iter()
             .find(|b| b["tag"] == "warp-balance")
             .expect("warp-balance not found");
 
@@ -217,18 +212,20 @@ mod tests {
 
     #[test]
     fn test_generate_routing_with_cloudflare_servers() {
-        let servers = vec![ServerConfig::Vless {
-            tag: "cf-server".to_string(),
-            address: "104.18.82.55".to_string(),
-            port: 443,
-            id: "test-uuid".to_string(),
-            encryption: "none".to_string(),
-            flow: "".to_string(),
-            network: "tcp".to_string(),
-            security: "tls".to_string(),
-            tls_settings: Box::new(None),
-            network_settings: None,
-        }];
+        let servers = vec![
+            ServerConfig::Vless {
+                tag: "cf-server".to_string(),
+                address: "cdn.cloudflare.example.com".to_string(),
+                port: 443,
+                id: "test-uuid".to_string(),
+                encryption: "none".to_string(),
+                flow: "".to_string(),
+                network: "tcp".to_string(),
+                security: "tls".to_string(),
+                tls_settings: None,
+                network_settings: None,
+            }
+        ];
 
         let result = generate_routing(&servers);
         assert!(result.is_ok());
@@ -236,14 +233,13 @@ mod tests {
         let config = result.unwrap();
         let balancers = config["routing"]["balancers"].as_array().unwrap();
 
-        // Should have claude-balance
-        let claude_balance = balancers
-            .iter()
-            .find(|b| b["tag"] == "claude-balance")
-            .expect("claude-balance not found");
+        // Cloudflare servers should use warp-balance
+        let warp_balance = balancers.iter()
+            .find(|b| b["tag"] == "warp-balance")
+            .expect("warp-balance not found");
 
-        assert_eq!(claude_balance["selector"].as_array().unwrap().len(), 1);
-        assert_eq!(claude_balance["selector"][0], "cf-server");
+        assert_eq!(warp_balance["selector"].as_array().unwrap().len(), 1);
+        assert_eq!(warp_balance["selector"][0], "cf-server");
     }
 
     #[test]
@@ -270,8 +266,7 @@ mod tests {
         assert!(ads_rule["domain"].as_array().unwrap().len() > 0);
 
         // Check local IPs rule
-        let local_rule = rules
-            .iter()
+        let local_rule = rules.iter()
             .find(|r| r["ip"].is_array() && r["outboundTag"] == "direct")
             .expect("Local IPs rule not found");
 
@@ -283,13 +278,15 @@ mod tests {
     #[test]
     fn test_generate_routing_default_tag() {
         // Test with only proxy servers
-        let proxy_servers = vec![ServerConfig::Shadowsocks {
-            tag: "proxy1".to_string(),
-            address: "1.2.3.4".to_string(),
-            port: 8388,
-            method: "aes-256-gcm".to_string(),
-            password: "test".to_string(),
-        }];
+        let proxy_servers = vec![
+            ServerConfig::Shadowsocks {
+                tag: "proxy1".to_string(),
+                address: "1.2.3.4".to_string(),
+                port: 8388,
+                method: "aes-256-gcm".to_string(),
+                password: "test".to_string(),
+            }
+        ];
 
         let result = generate_routing(&proxy_servers).unwrap();
         let rules = result["routing"]["rules"].as_array().unwrap();
@@ -297,8 +294,8 @@ mod tests {
 
         // When proxy servers exist, default should use proxy-balance
         assert!(
-            default_rule["outboundTag"] == "proxy-balance"
-                || default_rule["balancerTag"] == "proxy-balance"
+            default_rule["outboundTag"] == "proxy-balance" ||
+            default_rule["balancerTag"] == "proxy-balance"
         );
     }
 
@@ -334,14 +331,14 @@ mod tests {
             },
             ServerConfig::Vless {
                 tag: "cf-1".to_string(),
-                address: "104.18.82.55".to_string(),
+                address: "cdn.example.com".to_string(),
                 port: 443,
                 id: "test-uuid".to_string(),
                 encryption: "none".to_string(),
                 flow: "".to_string(),
                 network: "tcp".to_string(),
                 security: "tls".to_string(),
-                tls_settings: Box::new(None),
+                tls_settings: None,
                 network_settings: None,
             },
             ServerConfig::Shadowsocks {
@@ -350,7 +347,7 @@ mod tests {
                 port: 8388,
                 method: "aes-256-gcm".to_string(),
                 password: "test".to_string(),
-            },
+            }
         ];
 
         let result = generate_routing(&servers);
@@ -359,16 +356,28 @@ mod tests {
         let config = result.unwrap();
         let balancers = config["routing"]["balancers"].as_array().unwrap();
 
-        // Should have all three balancers
-        assert_eq!(balancers.len(), 3);
+        // Should have two balancers (warp-balance for both WARP and Cloudflare, proxy-balance)
+        assert_eq!(balancers.len(), 2);
 
-        let tags: Vec<&str> = balancers
-            .iter()
+        let tags: Vec<&str> = balancers.iter()
             .map(|b| b["tag"].as_str().unwrap())
             .collect();
 
         assert!(tags.contains(&"warp-balance"));
-        assert!(tags.contains(&"claude-balance"));
         assert!(tags.contains(&"proxy-balance"));
+
+        // Verify warp-balance contains both warp-1 and cf-1
+        let warp_balance = balancers.iter()
+            .find(|b| b["tag"] == "warp-balance")
+            .unwrap();
+        let warp_selectors = warp_balance["selector"].as_array().unwrap();
+        assert_eq!(warp_selectors.len(), 2);
+
+        // Verify proxy-balance contains proxy-1
+        let proxy_balance = balancers.iter()
+            .find(|b| b["tag"] == "proxy-balance")
+            .unwrap();
+        let proxy_selectors = proxy_balance["selector"].as_array().unwrap();
+        assert_eq!(proxy_selectors.len(), 1);
     }
 }
