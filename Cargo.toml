@@ -1,10 +1,22 @@
 [package]
 name = "proxy-harvest-rs"
 version = "0.1.0"
-edition = "2024"
+edition = "2021"
+authors = ["dark0ghost"]
+description = "Xray configuration generator from VPN server URLs with proxy availability checking"
+documentation = "https://docs.rs/proxy-harvest-rs"
+homepage = "https://github.com/dark0ghost/proxy-harvest-rs"
+repository = "https://github.com/dark0ghost/proxy-harvest-rs"
+license = "MIT OR Apache-2.0"
+keywords = ["xray", "vpn", "proxy", "config-generator"]
+categories = ["command-line-utilities", "network-programming"]
 
 [lib]
 name = "proxy_harvest_rs"
+path = "src/lib.rs"
+
+[[bin]]
+name = "proxy-harvest-rs"
 path = "src/main.rs"
 
 [dependencies]
@@ -16,6 +28,10 @@ clap = { version = "4.5", features = ["derive"] }
 urlencoding = "2.1.0"
 base64 = "0.22"
 regex = "1.5"
-uuid = { version = "1.4", features = ["v4"] }
 log = "0.4"
 env_logger = "0.11"
+rayon = "1.10"
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
