@@ -185,7 +185,3 @@ docker run --rm -v $(pwd)/output:/app/configs xray-config-gen \
   --url "https://example.com/servers.txt" \
   --output /app/configs
 ```
-
-## License
-
-MIT OR Apache-2.0
