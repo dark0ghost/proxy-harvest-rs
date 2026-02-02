@@ -1,0 +1,24 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(cat:*)",
+      "Bash(cargo :*)",
+      "Bash(rustup update stable)",
+      "Bash(yamllint .github/workflows/*.yml)",
+      "Bash(docker:*)",
+      "Bash(cargo:*)",
+      "Bash(./target/release/proxy-harvest-rs:*)",
+      "Bash(chmod:*)",
+      "Bash(test:*)",
+      "WebSearch",
+      "Bash(python3:*)"
+    ],
+    "deny": [
+      "Read(./.env)",
+      "Read(./.env.*)",
+      "Read(./secrets/**)",
+      "Read(./config/credentials.json)",
+      "Read(./build)"
+    ]
+  }
+}
