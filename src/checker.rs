@@ -10,6 +10,9 @@ pub fn check_server_availability(server: &ServerConfig, timeout_secs: u64) -> bo
     let (address, port) = match server {
         ServerConfig::Shadowsocks { address, port, .. } => (address, *port),
         ServerConfig::Vless { address, port, .. } => (address, *port),
+        ServerConfig::Vmess { address, port, .. } => (address, *port),
+        ServerConfig::Trojan { address, port, .. } => (address, *port),
+        ServerConfig::Hysteria2 { address, port, .. } => (address, *port),
     };
 
     let target = format!("{}:{}", address, port);

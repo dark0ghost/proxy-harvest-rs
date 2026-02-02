@@ -121,5 +121,4 @@ configs/
 ## Поддержка
 
 - 📚 Полная документация: [README.md](README.md)
-- 🔧 CI/CD гайд: [CI_CD.md](CI_CD.md)
 - 🐛 Issues: [GitHub Issues](../../issues)

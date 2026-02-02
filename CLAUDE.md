@@ -31,6 +31,16 @@ role: "Rust code quality and safety auditor"
 path: ".claude/agents/review/rust-code-reviewer.md"
 expertise: "Code analysis, safety checks, performance optimization, best practices enforcement"
 
+doc-writer:
+role: "Technical documentation specialist"
+path: ".claude/agents/docs/doc-writer.md"
+expertise: "Rustdoc conventions, API documentation, code examples, docs.rs standards, documentation structure"
+
+doc-reviewer:
+role: "Documentation quality assurance specialist"
+path: ".claude/agents/docs/doc-reviewer.md"
+expertise: "Documentation validation, accuracy verification, example testing, link checking, docs.rs compliance"
+
 ---
 
 🔄 Dynamic Agent Management
@@ -116,9 +126,13 @@ FOR EACH FEATURE:
 📋 Review Protocol
 
 All code must pass through:
-rust-code-reviewer for safety and quality
-architect for architectural alignment
-appropriate domain-specific reviewers (if applicable)
+- rust-code-reviewer for safety and quality
+- architect for architectural alignment
+- appropriate domain-specific reviewers (if applicable)
+
+All documentation must pass through:
+- doc-writer for creation and updates
+- doc-reviewer for quality assurance and accuracy validation
 
 🚦 Quality Gates
 
@@ -128,7 +142,9 @@ appropriate domain-specific reviewers (if applicable)
 | Performance    | Meets SLA under load         | benchmark-agent           |
 | Architecture   | Aligns with ADRs             | architect                 |
 | Maintainability| Meets cyclomatic complexity  | code-quality-agent        |
-| Documentation  | Complete API docs            | doc-generator + reviewer  |
+| Documentation  | Complete API docs            | doc-writer + doc-reviewer |
+| Doc Testing    | All examples compile & pass  | doc-reviewer              |
+| Doc Coverage   | 100% public API documented   | doc-reviewer              |
 
 ---
 
@@ -137,11 +153,14 @@ appropriate domain-specific reviewers (if applicable)
 .claude/
 ├── agents/
 │   ├── architect/               # System architecture agents
-|   │   └── prompt-architect.md  # Agent generation promt for coder
+│   │   └── prompt-architect.md  # Agent generation prompt for coder
 │   ├── coder/                   # Development agents
 │   │   └── rust-cli-builder.md  # Rust CLI development agent
-│   └── review/                  # Quality assurance agents
-│       └── rust-code-reviewer.md # Rust code analysis agent
+│   ├── review/                  # Quality assurance agents
+│   │   └── rust-code-reviewer.md # Rust code analysis agent
+│   └── docs/                    # Documentation agents
+│       ├── doc-writer.md        # Documentation writer
+│       └── doc-reviewer.md      # Documentation quality reviewer
 ├── commands/                    # Custom command definitions
 ├── skills/                      # Reusable utility functions
 └── templates/                   # Agent generation templates
@@ -154,13 +173,11 @@ docs/
 
 ---
 
-📚 Reference Architecture
-Agent orchestration: docs/Agents Ecosystem/AGENT-ORCHESTRATION.md
-System architecture: docs/Architecture/MAIN.md
-Quality gates: docs/Quality Gates/SPEC.md
-Report templates: docs/Reports/TEMPLATES.md
+📚 Agent Files
 
-Would you like me to:
-Generate the three agent files according to this framework?
-Create a specific implementation for one of the agents?
-Demonstrate how this orchestration would work with a sample task?
+Available agents:
+- .claude/agents/architect/prompt-architect.md - System architect and design decision maker
+- .claude/agents/coder/rust-cli-builder.md - Rust CLI application developer
+- .claude/agents/review/rust-code-reviewer.md - Rust code quality and safety auditor
+- .claude/agents/docs/doc-writer.md - Technical documentation specialist
+- .claude/agents/docs/doc-reviewer.md - Documentation quality assurance specialist

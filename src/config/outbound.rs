@@ -151,6 +151,254 @@ pub fn generate_outbounds(servers: &[ServerConfig]) -> Result<Value> {
                 outbound["streamSettings"] = stream_settings;
                 outbound
             }
+            ServerConfig::Vmess {
+                tag,
+                address,
+                port,
+                id,
+                alter_id,
+                security,
+                network,
+                tls,
+                tls_settings,
+                network_settings,
+            } => {
+                let mut outbound = json!({
+                    "tag": tag,
+                    "protocol": "vmess",
+                    "settings": {
+                        "vnext": [
+                            {
+                                "address": address,
+                                "port": port,
+                                "users": [
+                                    {
+                                        "id": id,
+                                        "alterId": alter_id,
+                                        "security": security,
+                                        "level": 0
+                                    }
+                                ]
+                            }
+                        ]
+                    }
+                });
+
+                // Build stream settings
+                let mut stream_settings = json!({
+                    "network": network,
+                    "security": tls
+                });
+
+                // Add TLS settings
+                if tls == "tls" {
+                    if let Some(tls_cfg) = tls_settings {
+                        let mut tls_settings_json = json!({
+                            "serverName": tls_cfg.server_name,
+                            "allowInsecure": tls_cfg.allow_insecure
+                        });
+
+                        if let Some(ref alpn) = tls_cfg.alpn {
+                            tls_settings_json["alpn"] = json!(alpn);
+                        }
+
+                        stream_settings["tlsSettings"] = tls_settings_json;
+                    }
+                }
+
+                // Add network settings
+                if let Some(net) = network_settings {
+                    match net {
+                        NetworkSettings::WebSocket { path, host } => {
+                            stream_settings["wsSettings"] = json!({
+                                "path": path,
+                                "headers": {
+                                    "Host": host
+                                }
+                            });
+                        }
+                        NetworkSettings::Grpc {
+                            service_name,
+                            authority,
+                        } => {
+                            stream_settings["grpcSettings"] = json!({
+                                "serviceName": service_name,
+                                "authority": authority,
+                                "multiMode": false
+                            });
+                        }
+                        NetworkSettings::Tcp { header_type } => {
+                            stream_settings["tcpSettings"] = json!({
+                                "header": {
+                                    "type": header_type
+                                }
+                            });
+                        }
+                    }
+                }
+
+                outbound["streamSettings"] = stream_settings;
+                outbound
+            }
+            ServerConfig::Trojan {
+                tag,
+                address,
+                port,
+                password,
+                network,
+                security,
+                sni,
+                tls_settings,
+                network_settings,
+            } => {
+                let mut outbound = json!({
+                    "tag": tag,
+                    "protocol": "trojan",
+                    "settings": {
+                        "servers": [
+                            {
+                                "address": address,
+                                "port": port,
+                                "password": password,
+                                "level": 0
+                            }
+                        ]
+                    }
+                });
+
+                // Build stream settings
+                let mut stream_settings = json!({
+                    "network": network,
+                    "security": security
+                });
+
+                // Add TLS/Reality settings
+                if security == "tls" || security == "reality" {
+                    if let Some(tls) = tls_settings {
+                        if security == "reality" {
+                            let mut reality_settings = json!({
+                                "fingerprint": tls.fingerprint,
+                                "serverName": tls.server_name
+                            });
+
+                            if let Some(ref pk) = tls.public_key {
+                                reality_settings["publicKey"] = json!(pk);
+                            }
+                            if let Some(ref sid) = tls.short_id {
+                                reality_settings["shortId"] = json!(sid);
+                            }
+                            if let Some(ref spx) = tls.spider_x {
+                                reality_settings["spiderX"] = json!(spx);
+                            }
+
+                            stream_settings["realitySettings"] = reality_settings;
+                        } else {
+                            let server_name = sni.clone().unwrap_or_else(|| tls.server_name.clone());
+                            let mut tls_settings_json = json!({
+                                "serverName": server_name,
+                                "fingerprint": tls.fingerprint,
+                                "allowInsecure": tls.allow_insecure
+                            });
+
+                            if let Some(ref alpn) = tls.alpn {
+                                tls_settings_json["alpn"] = json!(alpn);
+                            }
+
+                            stream_settings["tlsSettings"] = tls_settings_json;
+                        }
+                    } else if let Some(ref server_name) = sni {
+                        stream_settings["tlsSettings"] = json!({
+                            "serverName": server_name,
+                            "allowInsecure": true
+                        });
+                    }
+                }
+
+                // Add network settings
+                if let Some(net) = network_settings {
+                    match net {
+                        NetworkSettings::WebSocket { path, host } => {
+                            stream_settings["wsSettings"] = json!({
+                                "path": path,
+                                "headers": {
+                                    "Host": host
+                                }
+                            });
+                        }
+                        NetworkSettings::Grpc {
+                            service_name,
+                            authority,
+                        } => {
+                            stream_settings["grpcSettings"] = json!({
+                                "serviceName": service_name,
+                                "authority": authority,
+                                "multiMode": false
+                            });
+                        }
+                        NetworkSettings::Tcp { header_type } => {
+                            stream_settings["tcpSettings"] = json!({
+                                "header": {
+                                    "type": header_type
+                                }
+                            });
+                        }
+                    }
+                }
+
+                outbound["streamSettings"] = stream_settings;
+                outbound
+            }
+            ServerConfig::Hysteria2 {
+                tag,
+                address,
+                port,
+                password,
+                obfs,
+                obfs_password,
+                sni,
+                insecure,
+                pinned_sha256,
+            } => {
+                let mut settings = json!({
+                    "servers": [
+                        {
+                            "server": format!("{}:{}", address, port),
+                            "auth": password
+                        }
+                    ]
+                });
+
+                if let Some(ref obfs_type) = obfs {
+                    settings["servers"][0]["obfs"] = json!({
+                        "type": obfs_type,
+                        "password": obfs_password.as_ref().unwrap_or(&String::new())
+                    });
+                }
+
+                if let Some(ref server_name) = sni {
+                    settings["servers"][0]["tls"] = json!({
+                        "sni": server_name,
+                        "insecure": insecure
+                    });
+                }
+
+                if let Some(ref pin) = pinned_sha256 {
+                    if let Some(tls_obj) = settings["servers"][0].get_mut("tls") {
+                        tls_obj["pinSHA256"] = json!(pin);
+                    } else {
+                        settings["servers"][0]["tls"] = json!({
+                            "pinSHA256": pin,
+                            "insecure": insecure
+                        });
+                    }
+                }
+
+                json!({
+                    "tag": tag,
+                    "protocol": "hysteria2",
+                    "settings": settings
+                })
+            }
         };
 
         outbounds.push(outbound);
@@ -314,5 +562,34 @@ mod tests {
         assert_eq!(vless["streamSettings"]["wsSettings"]["path"], "/ws");
         assert_eq!(vless["streamSettings"]["wsSettings"]["host"], "example.com");
         assert_eq!(vless["streamSettings"]["tlsSettings"]["alpn"][0], "h2");
+    }
+
+    #[test]
+    fn test_generate_outbound_from_parsed_vless_url() {
+        use crate::parser::parse_servers;
+
+        let url = r#"vless://test-uuid-123@151.101.3.8:80?path=%2F---%40MiTiVPN%2F---%40MiTiVPN%2F---%40MiTiVPN%2F---%40MiTiVPN%2F---%40MiTiVPN&security=&encryption=none&host=mitivpn.global.ssl.fastly.net&type=ws#%F0%9F%87%A9%F0%9F%87%AA%20Germany%2C%20Dreieich%20%5BBL%5D"#;
+
+        let servers = parse_servers(url).unwrap();
+        assert_eq!(servers.len(), 1);
+
+        let result = generate_outbounds(&servers);
+        assert!(result.is_ok());
+
+        let config = result.unwrap();
+        let outbounds = config["outbounds"].as_array().unwrap();
+
+        let vless = &outbounds[0];
+        assert_eq!(vless["protocol"], "vless");
+        assert_eq!(vless["settings"]["vnext"][0]["address"], "151.101.3.8");
+        assert_eq!(vless["settings"]["vnext"][0]["port"], 80);
+        assert_eq!(vless["settings"]["vnext"][0]["users"][0]["id"], "test-uuid-123");
+        assert_eq!(vless["settings"]["vnext"][0]["users"][0]["encryption"], "none");
+        assert_eq!(vless["streamSettings"]["network"], "ws");
+        assert_eq!(vless["streamSettings"]["security"], "");
+        assert_eq!(vless["streamSettings"]["wsSettings"]["path"], "/---@MiTiVPN/---@MiTiVPN/---@MiTiVPN/---@MiTiVPN/---@MiTiVPN");
+        assert_eq!(vless["streamSettings"]["wsSettings"]["host"], "mitivpn.global.ssl.fastly.net");
+
+        println!("Generated config:\n{}", serde_json::to_string_pretty(&vless).unwrap());
     }
 }
