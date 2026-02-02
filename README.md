@@ -71,8 +71,6 @@ Contains routing rules and load balancers:
 
 ## Supported Protocols
 
-Full documentation: [docs/SUPPORTED_PROTOCOLS.md](docs/SUPPORTED_PROTOCOLS.md)
-
 ### Shadowsocks (`ss://`)
 - ✅ URL-encoded and standard base64
 - ✅ All base64 formats (STANDARD, URL_SAFE, NO_PAD)
@@ -129,8 +127,6 @@ trojan://password@example.com:443/?type=ws&path=/trojan&security=tls#server
 # Hysteria2
 hysteria2://auth@example.com:443?obfs=salamander&sni=example.com#server
 ```
-
-More examples in [docs/SUPPORTED_PROTOCOLS.md](docs/SUPPORTED_PROTOCOLS.md)
 
 ## Logging
 
