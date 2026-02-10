@@ -14,10 +14,12 @@ categories = ["command-line-utilities", "network-programming"]
 [lib]
 name = "proxy_harvest_rs"
 path = "src/lib.rs"
+doc = false
 
 [[bin]]
 name = "proxy-harvest-rs"
 path = "src/main.rs"
+doc = false
 
 [dependencies]
 anyhow = "1.0"
