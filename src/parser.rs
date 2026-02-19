@@ -327,7 +327,7 @@ fn parse_tls_settings(params: &HashMap<String, String>, security: &str) -> Resul
     };
 
     let spider_x = if security == "reality" {
-        params.get("spx").or_else(|| params.get("path")).map(|s| s.to_string())
+        Some(params.get("spx").or_else(|| params.get("path")).map(|s| s.to_string()).unwrap_or_else(|| "/".to_string()))
     } else {
         None
     };

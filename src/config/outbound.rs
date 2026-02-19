@@ -212,9 +212,7 @@ pub fn generate_outbounds(servers: &[ServerConfig]) -> Result<Value> {
                         NetworkSettings::WebSocket { path, host } => {
                             stream_settings["wsSettings"] = json!({
                                 "path": path,
-                                "headers": {
-                                    "Host": host
-                                }
+                                "host": host
                             });
                         }
                         NetworkSettings::Grpc {
@@ -320,9 +318,7 @@ pub fn generate_outbounds(servers: &[ServerConfig]) -> Result<Value> {
                         NetworkSettings::WebSocket { path, host } => {
                             stream_settings["wsSettings"] = json!({
                                 "path": path,
-                                "headers": {
-                                    "Host": host
-                                }
+                                "host": host
                             });
                         }
                         NetworkSettings::Grpc {
@@ -591,5 +587,58 @@ mod tests {
         assert_eq!(vless["streamSettings"]["wsSettings"]["host"], "mitivpn.global.ssl.fastly.net");
 
         println!("Generated config:\n{}", serde_json::to_string_pretty(&vless).unwrap());
+    }
+
+    #[test]
+    fn test_generate_outbound_vless_reality_grpc() {
+        use crate::parser::parse_servers;
+
+        let url = "vless://test-uuid@152.53.50.126:22955?security=reality&encryption=none&pbk=9Mt_Y8J_qDb1khlieWnhDSAq-kGtLHw6aOKgkAzOMms&fp=chrome&type=grpc&serviceName=grpc&sni=one-piece.com&sid=6ba85179e30d4fc2#Austria";
+
+        let servers = parse_servers(url).unwrap();
+        assert_eq!(servers.len(), 1);
+
+        let result = generate_outbounds(&servers);
+        assert!(result.is_ok());
+
+        let config = result.unwrap();
+        let outbounds = config["outbounds"].as_array().unwrap();
+
+        let vless = &outbounds[0];
+        assert_eq!(vless["protocol"], "vless");
+        assert_eq!(vless["settings"]["vnext"][0]["address"], "152.53.50.126");
+        assert_eq!(vless["settings"]["vnext"][0]["port"], 22955);
+        assert_eq!(vless["streamSettings"]["network"], "grpc");
+        assert_eq!(vless["streamSettings"]["security"], "reality");
+        assert_eq!(vless["streamSettings"]["realitySettings"]["serverName"], "one-piece.com");
+        assert_eq!(vless["streamSettings"]["realitySettings"]["fingerprint"], "chrome");
+        assert_eq!(vless["streamSettings"]["realitySettings"]["publicKey"], "9Mt_Y8J_qDb1khlieWnhDSAq-kGtLHw6aOKgkAzOMms");
+        assert_eq!(vless["streamSettings"]["realitySettings"]["shortId"], "6ba85179e30d4fc2");
+        assert_eq!(vless["streamSettings"]["grpcSettings"]["serviceName"], "grpc");
+
+        println!("Generated VLESS REALITY gRPC config:\n{}", serde_json::to_string_pretty(&vless).unwrap());
+    }
+
+    #[test]
+    fn test_vless_real_uuid_format() {
+        use crate::parser::parse_servers;
+
+        // Test with real UUID format to ensure it's not confused with sid
+        let url = "vless://a1b2c3d4-e5f6-7890-abcd-ef1234567890@152.53.50.126:22955?security=reality&encryption=none&pbk=9Mt_Y8J_qDb1khlieWnhDSAq-kGtLHw6aOKgkAzOMms&fp=chrome&type=grpc&serviceName=grpc&sni=one-piece.com&sid=6ba85179e30d4fc2#Austria";
+
+        let servers = parse_servers(url).unwrap();
+        let result = generate_outbounds(&servers).unwrap();
+        let vless = &result["outbounds"][0];
+
+        // UUID should be exactly as in URL, NOT the sid value
+        let parsed_id = vless["settings"]["vnext"][0]["users"][0]["id"].as_str().unwrap();
+        assert_eq!(parsed_id, "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+            "UUID was incorrectly parsed as: {}", parsed_id);
+
+        // Verify sid is correctly in realitySettings, not in id
+        assert_eq!(vless["streamSettings"]["realitySettings"]["shortId"], "6ba85179e30d4fc2");
+
+        println!("UUID parsed correctly: {}", parsed_id);
+        println!("shortId parsed correctly: {}", vless["streamSettings"]["realitySettings"]["shortId"]);
     }
 }
