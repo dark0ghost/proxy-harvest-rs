@@ -7,9 +7,9 @@ use std::path::PathBuf;
 #[command(name = "proxy-harvest-rs")]
 #[command(about = "Generate Xray configuration files from VPN server URLs", long_about = None)]
 struct Args {
-    /// URL to fetch the server list from
+    /// URLs to fetch server lists from (multiple URLs can be specified)
     #[arg(short, long)]
-    url: String,
+    url: Vec<String>,
 
     /// Output directory for generated config files
     #[arg(short, long, default_value = "./configs")]
@@ -28,6 +28,10 @@ fn main() -> Result<()> {
     env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
 
     let args = Args::parse();
+
+    if args.url.is_empty() {
+        anyhow::bail!("At least one URL must be provided via --url");
+    }
 
     process_servers(&args.url, &args.output, args.check_availability, args.timeout)?;
 

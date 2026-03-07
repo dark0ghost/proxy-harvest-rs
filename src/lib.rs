@@ -13,13 +13,13 @@
 //! ## Quick Start
 //!
 //! ```rust,no_run
-//! use proxy_harvest_rs::parser;
+//! use proxy_harvest_rs::parser::parse_servers;
 //! use proxy_harvest_rs::config::{outbound, routing};
 //!
 //! # fn main() -> anyhow::Result<()> {
 //! // Parse server URLs from content
 //! let content = "vless://uuid@host:port?security=tls#tag";
-//! let servers = parser::parse_servers(content)?;
+//! let servers = parse_servers(content)?;
 //!
 //! // Generate Xray configurations
 //! let outbounds = outbound::generate_outbounds(&servers)?;
@@ -30,6 +30,17 @@
 //!
 //! ## CLI Usage
 //!
+//! Single URL:
+//! ```bash
+//! proxy-harvest-rs --url https://example.com/servers --output ./configs
+//! ```
+//!
+//! Multiple URLs:
+//! ```bash
+//! proxy-harvest-rs --url https://example.com/servers1 --url https://example.com/servers2 --output ./configs
+//! ```
+//!
+//! With availability check:
 //! ```bash
 //! proxy-harvest-rs --url https://example.com/servers --output ./configs --check-availability
 //! ```
@@ -92,17 +103,18 @@ pub fn fetch_url_content(url: &str) -> Result<String> {
     Ok(content)
 }
 
-/// Processes VPN server URLs and generates Xray configuration files.
+/// Processes VPN server URLs from multiple sources and generates Xray configuration files.
 ///
 /// This is a high-level function that orchestrates the entire workflow:
-/// 1. Fetches server list from URL
-/// 2. Parses server configurations
-/// 3. Optionally checks server availability
-/// 4. Generates Xray configuration files
+/// 1. Fetches server lists from multiple URLs
+/// 2. Parses server configurations from all sources
+/// 3. Merges servers into a single list (duplicates removed by tag)
+/// 4. Optionally checks server availability
+/// 5. Generates Xray configuration files
 ///
 /// # Arguments
 ///
-/// * `url` - URL to fetch the server list from
+/// * `urls` - Slice of URLs to fetch server lists from
 /// * `output_dir` - Directory where configuration files will be written
 /// * `check_availability` - Whether to check server availability
 /// * `timeout` - Timeout in seconds for availability checks
@@ -114,7 +126,7 @@ pub fn fetch_url_content(url: &str) -> Result<String> {
 /// # Errors
 ///
 /// This function will return an error if:
-/// - The URL cannot be fetched
+/// - Any URL cannot be fetched
 /// - The content cannot be parsed
 /// - The output directory cannot be created
 /// - Configuration files cannot be written
@@ -125,8 +137,12 @@ pub fn fetch_url_content(url: &str) -> Result<String> {
 /// # use proxy_harvest_rs::process_servers;
 /// # use std::path::PathBuf;
 /// # fn main() -> anyhow::Result<()> {
+/// let urls = vec![
+///     "https://example.com/servers1".to_string(),
+///     "https://example.com/servers2".to_string(),
+/// ];
 /// process_servers(
-///     "https://example.com/servers",
+///     &urls,
 ///     &PathBuf::from("./configs"),
 ///     true,
 ///     5
@@ -135,25 +151,51 @@ pub fn fetch_url_content(url: &str) -> Result<String> {
 /// # }
 /// ```
 pub fn process_servers(
-    url: &str,
+    urls: &[String],
     output_dir: &Path,
     check_availability: bool,
     timeout: u64,
 ) -> Result<()> {
     log::info!("Starting Xray config generator");
-    log::info!("Fetching servers from: {}", url);
+    log::info!("Fetching servers from {} URL(s)", urls.len());
     log::info!("Output directory: {}", output_dir.display());
 
     // Create output directory if it doesn't exist
     std::fs::create_dir_all(output_dir)?;
 
-    // Fetch the content from URL
-    let content = fetch_url_content(url)?;
-    log::info!("Fetched {} bytes of data", content.len());
+    // Collect all servers from all URLs
+    let mut all_servers = Vec::new();
 
-    // Parse server URLs
-    let mut servers = parser::parse_servers(&content)?;
-    log::info!("Parsed {} servers", servers.len());
+    for url in urls {
+        log::info!("Fetching content from URL: {}", url);
+
+        // Fetch the content from URL
+        let content = fetch_url_content(url)?;
+        log::info!("Fetched {} bytes of data from {}", content.len(), url);
+
+        // Parse server URLs
+        let servers = parser::parse_servers(&content)?;
+        log::info!("Parsed {} servers from {}", servers.len(), url);
+
+        all_servers.extend(servers);
+    }
+
+    log::info!("Total servers collected: {}", all_servers.len());
+
+    // Remove duplicates by tag (keep first occurrence)
+    let mut seen_tags = std::collections::HashSet::new();
+    let mut unique_servers = Vec::new();
+    for server in all_servers {
+        let tag = server.tag().to_string();
+        if seen_tags.insert(tag) {
+            unique_servers.push(server);
+        } else {
+            log::debug!("Skipping duplicate server with tag: {}", server.tag());
+        }
+    }
+
+    let mut servers = unique_servers;
+    log::info!("Unique servers after deduplication: {}", servers.len());
 
     // Check availability if requested
     if check_availability {

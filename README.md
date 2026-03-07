@@ -1,10 +1,12 @@
 # Xray Config Generator
 
-A Rust CLI utility for generating Xray configuration files from VPN server URLs.
+A Rust CLI utility for generating Xray configuration files from multiple VPN server URL sources.
 
 ## Features
 
 - Parse server URLs with protocols: `ss://`, `vless://`, `vmess://`, `trojan://`, `hysteria2://`
+- **Support for multiple URLs** - merge servers from multiple sources
+- **Automatic deduplication** - servers with duplicate tags are removed
 - Generate configuration files for Xray
 - Automatic load balancing across server groups (Cloudflare, WARP, others)
 - **Proxy server availability checking** before adding to configuration
@@ -22,22 +24,42 @@ cargo build --release
 
 ## Usage
 
+### Single URL
+
 ```bash
 cargo run -- --url "https://raw.githubusercontent.com/STR97/STRUGOV/refs/heads/main/STR.BYPASS" --output "./configs"
 ```
 
+### Multiple URLs
+
+```bash
+cargo run -- \
+  --url "https://example.com/servers1.txt" \
+  --url "https://example.com/servers2.txt" \
+  --output "./configs"
+```
+
 ### Command Line Options
 
-- `--url` / `-u` - URL to the server list file
+- `--url` / `-u` - URL to the server list file (**can be specified multiple times**)
 - `--output` / `-o` - Directory for saving configuration files (default: `./configs`)
 - `--check-availability` / `-c` - Enable proxy availability checking before adding to configuration (default: `false`)
 - `--timeout` / `-t` - Timeout for availability checks in seconds (default: `5`)
 
 ### Usage Examples
 
-Basic usage without availability checking:
+Basic usage with single URL:
 ```bash
 cargo run -- --url "https://example.com/servers.txt" --output "./configs"
+```
+
+Multiple URLs (servers are merged and deduplicated):
+```bash
+cargo run -- \
+  --url "https://example.com/servers1.txt" \
+  --url "https://example.com/servers2.txt" \
+  --url "https://example.com/servers3.txt" \
+  --output "./configs"
 ```
 
 With availability checking (5 second timeout):

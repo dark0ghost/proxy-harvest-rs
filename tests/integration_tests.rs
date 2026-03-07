@@ -1,5 +1,6 @@
 use proxy_harvest_rs::parser::{parse_servers, ServerConfig};
 use proxy_harvest_rs::config::{outbound, routing};
+use std::collections::HashSet;
 
 const SAMPLE_SERVERS: &str = r#"
 ss://Y2hhY2hhMjAtaWV0Zi1wb2x5MTMwNTpUWTI5bWJaYmdwbGhjNHZUVDN4aDNz@62.133.60.43:36456#test-ss-server
@@ -223,4 +224,78 @@ vless://uuid@example.com:443?encryption=none&security=tls&type=tcp#another-valid
 
     let routing_config = routing::generate_routing(&servers);
     assert!(routing_config.is_ok());
+}
+
+#[test]
+fn test_merge_servers_from_multiple_sources() {
+    // Simulate servers from multiple URLs
+    let source1 = r#"
+ss://Y2hhY2hhMjAtaWV0Zi1wb2x5MTMwNTpwYXNzd29yZA@1.1.1.1:8388#server-from-source1
+vless://uuid-1@example.com:443?encryption=none&security=tls&type=tcp#unique-server-1
+"#;
+
+    let source2 = r#"
+ss://Y2hhY2hhMjAtaWV0Zi1wb2x5MTMwNTpwYXNzd29yZA@2.2.2.2:8388#server-from-source2
+vless://uuid-2@example.com:443?encryption=none&security=tls&type=tcp#unique-server-2
+"#;
+
+    let servers1 = parse_servers(source1).expect("Failed to parse source1");
+    let servers2 = parse_servers(source2).expect("Failed to parse source2");
+
+    // Combine servers
+    let mut all_servers = Vec::new();
+    all_servers.extend(servers1);
+    all_servers.extend(servers2);
+
+    // Should have 4 servers total
+    assert_eq!(all_servers.len(), 4, "Expected 4 servers from combined sources");
+
+    // Verify all tags are unique
+    let tags: HashSet<&str> = all_servers.iter().map(|s| s.tag()).collect();
+    assert_eq!(tags.len(), 4, "Expected all tags to be unique");
+}
+
+#[test]
+fn test_duplicate_servers_removed_by_tag() {
+    // Simulate duplicate servers with same tag from different sources
+    let source1 = r#"
+ss://Y2hhY2hhMjAtaWV0Zi1wb2x5MTMwNTpwYXNzd29yZA@1.1.1.1:8388#duplicate-server
+vless://uuid-1@example.com:443?encryption=none&security=tls&type=tcp#unique-server-1
+"#;
+
+    let source2 = r#"
+ss://Y2hhY2hhMjAtaWV0Zi1wb2x5MTMwNTpwYXNzd29yZA@2.2.2.2:8388#duplicate-server
+vless://uuid-2@example.com:443?encryption=none&security=tls&type=tcp#unique-server-2
+"#;
+
+    let servers1 = parse_servers(source1).expect("Failed to parse source1");
+    let servers2 = parse_servers(source2).expect("Failed to parse source2");
+
+    // Combine servers
+    let mut all_servers = Vec::new();
+    all_servers.extend(servers1);
+    all_servers.extend(servers2);
+
+    // Before deduplication: 4 servers
+    assert_eq!(all_servers.len(), 4, "Expected 4 servers before deduplication");
+
+    // Remove duplicates by tag (keep first occurrence)
+    let mut seen_tags = HashSet::new();
+    let mut unique_servers = Vec::new();
+    for server in all_servers {
+        let tag = server.tag().to_string();
+        if seen_tags.insert(tag) {
+            unique_servers.push(server);
+        }
+    }
+
+    // After deduplication: 3 servers (one duplicate removed)
+    assert_eq!(unique_servers.len(), 3, "Expected 3 servers after deduplication");
+
+    // Verify the duplicate tag appears only once
+    let duplicate_count = unique_servers
+        .iter()
+        .filter(|s| s.tag() == "duplicate-server")
+        .count();
+    assert_eq!(duplicate_count, 1, "Duplicate server should appear only once");
 }
