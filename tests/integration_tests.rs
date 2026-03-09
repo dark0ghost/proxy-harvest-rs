@@ -1,5 +1,5 @@
-use proxy_harvest_rs::parser::{parse_servers, ServerConfig};
 use proxy_harvest_rs::config::{outbound, routing};
+use proxy_harvest_rs::parser::{parse_servers, ServerConfig};
 use std::collections::HashSet;
 
 const SAMPLE_SERVERS: &str = r#"
@@ -17,15 +17,24 @@ fn test_end_to_end_parsing() {
 
     let servers = result.unwrap();
     // Note: one VLESS URL with grpc doesn't parse correctly, expecting 4 instead of 5
-    assert!(servers.len() >= 4, "Expected at least 4 servers, got {}", servers.len());
+    assert!(
+        servers.len() >= 4,
+        "Expected at least 4 servers, got {}",
+        servers.len()
+    );
 
     // Verify server types
-    let shadowsocks_count = servers.iter()
+    let shadowsocks_count = servers
+        .iter()
         .filter(|s| matches!(s, ServerConfig::Shadowsocks { .. }))
         .count();
-    assert!(shadowsocks_count >= 1, "Expected at least 1 Shadowsocks server");
+    assert!(
+        shadowsocks_count >= 1,
+        "Expected at least 1 Shadowsocks server"
+    );
 
-    let vless_count = servers.iter()
+    let vless_count = servers
+        .iter()
         .filter(|s| matches!(s, ServerConfig::Vless { .. }))
         .count();
     assert!(vless_count >= 2, "Expected at least 2 VLESS servers");
@@ -39,11 +48,12 @@ fn test_end_to_end_warp_detection() {
     let servers = result.unwrap();
 
     // Find WARP servers
-    let warp_servers: Vec<&ServerConfig> = servers.iter()
-        .filter(|s| s.is_warp())
-        .collect();
+    let warp_servers: Vec<&ServerConfig> = servers.iter().filter(|s| s.is_warp()).collect();
 
-    assert!(!warp_servers.is_empty(), "Expected at least one WARP server");
+    assert!(
+        !warp_servers.is_empty(),
+        "Expected at least one WARP server"
+    );
 
     // Check that WARP servers have correct tags
     for server in warp_servers {
@@ -63,11 +73,12 @@ fn test_end_to_end_cloudflare_detection() {
     let servers = result.unwrap();
 
     // Find Cloudflare servers
-    let cf_servers: Vec<&ServerConfig> = servers.iter()
-        .filter(|s| s.is_cloudflare())
-        .collect();
+    let cf_servers: Vec<&ServerConfig> = servers.iter().filter(|s| s.is_cloudflare()).collect();
 
-    assert!(!cf_servers.is_empty(), "Expected at least one Cloudflare server");
+    assert!(
+        !cf_servers.is_empty(),
+        "Expected at least one Cloudflare server"
+    );
 }
 
 #[test]
@@ -83,7 +94,11 @@ fn test_end_to_end_config_generation() {
     let outbound_list = outbounds["outbounds"].as_array().unwrap();
 
     // Should have: parsed servers + direct + block (at least 6)
-    assert!(outbound_list.len() >= 6, "Expected at least 6 outbounds, got {}", outbound_list.len());
+    assert!(
+        outbound_list.len() >= 6,
+        "Expected at least 6 outbounds, got {}",
+        outbound_list.len()
+    );
 
     // Verify direct and block exist
     assert!(
@@ -110,10 +125,7 @@ fn test_end_to_end_config_generation() {
     assert!(rules.len() > 5, "Expected multiple routing rules");
 
     // Verify essential rules
-    assert!(
-        rules.iter().any(|r| r["port"] == "53"),
-        "Missing DNS rule"
-    );
+    assert!(rules.iter().any(|r| r["port"] == "53"), "Missing DNS rule");
     assert!(
         rules.iter().any(|r| r["outboundTag"] == "block"),
         "Missing block rule"
@@ -128,16 +140,17 @@ fn test_end_to_end_balancer_categories() {
     let balancers = routing_config["routing"]["balancers"].as_array().unwrap();
 
     // Collect balancer tags
-    let balancer_tags: Vec<&str> = balancers.iter()
+    let balancer_tags: Vec<&str> = balancers
+        .iter()
         .map(|b| b["tag"].as_str().unwrap())
         .collect();
 
     // Should have appropriate balancers based on server types
     // We have WARP, Cloudflare, and regular proxy servers
     assert!(
-        balancer_tags.contains(&"warp-balance") ||
-        balancer_tags.contains(&"claude-balance") ||
-        balancer_tags.contains(&"proxy-balance"),
+        balancer_tags.contains(&"warp-balance")
+            || balancer_tags.contains(&"claude-balance")
+            || balancer_tags.contains(&"proxy-balance"),
         "Expected at least one balancer type"
     );
 
@@ -148,8 +161,7 @@ fn test_end_to_end_balancer_categories() {
 
         // Verify strategy
         assert_eq!(
-            balancer["strategy"]["type"],
-            "leastping",
+            balancer["strategy"]["type"], "leastping",
             "Expected leastping strategy"
         );
     }
@@ -165,20 +177,23 @@ fn test_end_to_end_json_validity() {
 
     // Verify JSON can be serialized to string
     let outbounds_json = serde_json::to_string_pretty(&outbounds);
-    assert!(outbounds_json.is_ok(), "Failed to serialize outbounds to JSON");
+    assert!(
+        outbounds_json.is_ok(),
+        "Failed to serialize outbounds to JSON"
+    );
 
     let routing_json = serde_json::to_string_pretty(&routing_config);
     assert!(routing_json.is_ok(), "Failed to serialize routing to JSON");
 
     // Verify JSON can be parsed back
     let outbounds_str = outbounds_json.unwrap();
-    let reparsed_outbounds: serde_json::Value = serde_json::from_str(&outbounds_str)
-        .expect("Failed to parse outbounds JSON");
+    let reparsed_outbounds: serde_json::Value =
+        serde_json::from_str(&outbounds_str).expect("Failed to parse outbounds JSON");
     assert_eq!(reparsed_outbounds, outbounds);
 
     let routing_str = routing_json.unwrap();
-    let reparsed_routing: serde_json::Value = serde_json::from_str(&routing_str)
-        .expect("Failed to parse routing JSON");
+    let reparsed_routing: serde_json::Value =
+        serde_json::from_str(&routing_str).expect("Failed to parse routing JSON");
     assert_eq!(reparsed_routing, routing_config);
 }
 
@@ -194,12 +209,20 @@ fn test_end_to_end_empty_input() {
     let outbound_list = outbounds["outbounds"].as_array().unwrap();
 
     // Should have direct + block
-    assert_eq!(outbound_list.len(), 2, "Expected only direct and block outbounds");
+    assert_eq!(
+        outbound_list.len(),
+        2,
+        "Expected only direct and block outbounds"
+    );
 
     let routing_config = routing::generate_routing(&servers).expect("Failed to generate routing");
     let balancers = routing_config["routing"]["balancers"].as_array().unwrap();
 
-    assert_eq!(balancers.len(), 0, "Expected no balancers with empty server list");
+    assert_eq!(
+        balancers.len(),
+        0,
+        "Expected no balancers with empty server list"
+    );
 }
 
 #[test]
@@ -214,9 +237,16 @@ vless://uuid@example.com:443?encryption=none&security=tls&type=tcp#another-valid
     let servers = parse_servers(mixed_input).expect("Failed to parse mixed input");
 
     // Should only have valid servers (at least 1)
-    assert!(servers.len() >= 1, "Expected at least 1 valid server, got {}", servers.len());
-    assert!(servers[0].tag().contains("valid") || servers[0].tag().contains("server"),
-            "Expected valid server tag, got {}", servers[0].tag());
+    assert!(
+        servers.len() >= 1,
+        "Expected at least 1 valid server, got {}",
+        servers.len()
+    );
+    assert!(
+        servers[0].tag().contains("valid") || servers[0].tag().contains("server"),
+        "Expected valid server tag, got {}",
+        servers[0].tag()
+    );
 
     // Should still generate valid configs
     let outbounds = outbound::generate_outbounds(&servers);
@@ -248,7 +278,11 @@ vless://uuid-2@example.com:443?encryption=none&security=tls&type=tcp#unique-serv
     all_servers.extend(servers2);
 
     // Should have 4 servers total
-    assert_eq!(all_servers.len(), 4, "Expected 4 servers from combined sources");
+    assert_eq!(
+        all_servers.len(),
+        4,
+        "Expected 4 servers from combined sources"
+    );
 
     // Verify all tags are unique
     let tags: HashSet<&str> = all_servers.iter().map(|s| s.tag()).collect();
@@ -277,7 +311,11 @@ vless://uuid-2@example.com:443?encryption=none&security=tls&type=tcp#unique-serv
     all_servers.extend(servers2);
 
     // Before deduplication: 4 servers
-    assert_eq!(all_servers.len(), 4, "Expected 4 servers before deduplication");
+    assert_eq!(
+        all_servers.len(),
+        4,
+        "Expected 4 servers before deduplication"
+    );
 
     // Remove duplicates by tag (keep first occurrence)
     let mut seen_tags = HashSet::new();
@@ -290,12 +328,19 @@ vless://uuid-2@example.com:443?encryption=none&security=tls&type=tcp#unique-serv
     }
 
     // After deduplication: 3 servers (one duplicate removed)
-    assert_eq!(unique_servers.len(), 3, "Expected 3 servers after deduplication");
+    assert_eq!(
+        unique_servers.len(),
+        3,
+        "Expected 3 servers after deduplication"
+    );
 
     // Verify the duplicate tag appears only once
     let duplicate_count = unique_servers
         .iter()
         .filter(|s| s.tag() == "duplicate-server")
         .count();
-    assert_eq!(duplicate_count, 1, "Duplicate server should appear only once");
+    assert_eq!(
+        duplicate_count, 1,
+        "Duplicate server should appear only once"
+    );
 }

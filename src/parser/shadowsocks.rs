@@ -30,17 +30,14 @@ impl UrlParser for ShadowsocksParser {
     fn parse_raw(&self, url: &str, idx: usize) -> Result<ShadowsocksRaw> {
         // Format: ss://base64(method:password)@host:port[?params][#tag]
         let re = Regex::new(r"^ss://([^@]+)@([^:]+):(\d+)(?:\?([^#]*))?(?:#(.*))?$")?;
-        let caps = re
-            .captures(url)
-            .context("Invalid shadowsocks URL format")?;
+        let caps = re.captures(url).context("Invalid shadowsocks URL format")?;
 
         let encoded = caps.get(1).unwrap().as_str();
         let host = caps.get(2).unwrap().as_str().to_string();
         let port: u16 = caps.get(3).unwrap().as_str().parse()?;
-        let tag = decode_tag(
-            caps.get(5).map(|m| m.as_str()).unwrap_or(""),
-            || format!("ss-{}", idx),
-        );
+        let tag = decode_tag(caps.get(5).map(|m| m.as_str()).unwrap_or(""), || {
+            format!("ss-{}", idx)
+        });
 
         // Decode base64 credentials
         let decoded = decode_base64_flexible(encoded)?;
@@ -87,7 +84,12 @@ mod tests {
         assert!(result.is_ok());
         let server = result.unwrap();
         match server {
-            ServerConfig::Shadowsocks { method, address, port, .. } => {
+            ServerConfig::Shadowsocks {
+                method,
+                address,
+                port,
+                ..
+            } => {
                 assert_eq!(method, "chacha20-ietf-poly1305");
                 assert_eq!(address, "62.133.60.43");
                 assert_eq!(port, 36456);

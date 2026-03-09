@@ -1,6 +1,6 @@
+use crate::parser::{NetworkSettings, ServerConfig};
 use anyhow::Result;
 use serde_json::{json, Value};
-use crate::parser::{ServerConfig, NetworkSettings};
 
 /// Generates Xray outbound configuration from parsed servers
 ///
@@ -291,7 +291,8 @@ pub fn generate_outbounds(servers: &[ServerConfig]) -> Result<Value> {
 
                             stream_settings["realitySettings"] = reality_settings;
                         } else {
-                            let server_name = sni.clone().unwrap_or_else(|| tls.server_name.clone());
+                            let server_name =
+                                sni.clone().unwrap_or_else(|| tls.server_name.clone());
                             let mut tls_settings_json = json!({
                                 "serverName": server_name,
                                 "fingerprint": tls.fingerprint,
@@ -424,19 +425,17 @@ pub fn generate_outbounds(servers: &[ServerConfig]) -> Result<Value> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::parser::{ServerConfig, TlsSettings, NetworkSettings};
+    use crate::parser::{NetworkSettings, ServerConfig, TlsSettings};
 
     #[test]
     fn test_generate_outbounds_shadowsocks() {
-        let servers = vec![
-            ServerConfig::Shadowsocks {
-                tag: "test-ss".to_string(),
-                address: "1.2.3.4".to_string(),
-                port: 8388,
-                method: "aes-256-gcm".to_string(),
-                password: "test-password".to_string(),
-            }
-        ];
+        let servers = vec![ServerConfig::Shadowsocks {
+            tag: "test-ss".to_string(),
+            address: "1.2.3.4".to_string(),
+            port: 8388,
+            method: "aes-256-gcm".to_string(),
+            password: "test-password".to_string(),
+        }];
 
         let result = generate_outbounds(&servers);
         assert!(result.is_ok());
@@ -458,30 +457,28 @@ mod tests {
 
     #[test]
     fn test_generate_outbounds_vless_reality() {
-        let servers = vec![
-            ServerConfig::Vless {
-                tag: "test-vless".to_string(),
-                address: "example.com".to_string(),
-                port: 443,
-                id: "test-uuid".to_string(),
-                encryption: "none".to_string(),
-                flow: "xtls-rprx-vision".to_string(),
-                network: "tcp".to_string(),
-                security: "reality".to_string(),
-                tls_settings: Some(Box::new(TlsSettings {
-                    server_name: "example.com".to_string(),
-                    fingerprint: "chrome".to_string(),
-                    alpn: None,
-                    allow_insecure: false,
-                    public_key: Some("test-key".to_string()),
-                    short_id: Some("test-id".to_string()),
-                    spider_x: Some("/".to_string()),
-                })),
-                network_settings: Some(NetworkSettings::Tcp {
-                    header_type: "none".to_string(),
-                }),
-            }
-        ];
+        let servers = vec![ServerConfig::Vless {
+            tag: "test-vless".to_string(),
+            address: "example.com".to_string(),
+            port: 443,
+            id: "test-uuid".to_string(),
+            encryption: "none".to_string(),
+            flow: "xtls-rprx-vision".to_string(),
+            network: "tcp".to_string(),
+            security: "reality".to_string(),
+            tls_settings: Some(Box::new(TlsSettings {
+                server_name: "example.com".to_string(),
+                fingerprint: "chrome".to_string(),
+                alpn: None,
+                allow_insecure: false,
+                public_key: Some("test-key".to_string()),
+                short_id: Some("test-id".to_string()),
+                spider_x: Some("/".to_string()),
+            })),
+            network_settings: Some(NetworkSettings::Tcp {
+                header_type: "none".to_string(),
+            }),
+        }];
 
         let result = generate_outbounds(&servers);
         assert!(result.is_ok());
@@ -493,8 +490,14 @@ mod tests {
         assert_eq!(vless["tag"], "test-vless");
         assert_eq!(vless["protocol"], "vless");
         assert_eq!(vless["streamSettings"]["security"], "reality");
-        assert_eq!(vless["streamSettings"]["realitySettings"]["publicKey"], "test-key");
-        assert_eq!(vless["streamSettings"]["realitySettings"]["shortId"], "test-id");
+        assert_eq!(
+            vless["streamSettings"]["realitySettings"]["publicKey"],
+            "test-key"
+        );
+        assert_eq!(
+            vless["streamSettings"]["realitySettings"]["shortId"],
+            "test-id"
+        );
     }
 
     #[test]
@@ -521,31 +524,29 @@ mod tests {
 
     #[test]
     fn test_generate_outbounds_vless_websocket() {
-        let servers = vec![
-            ServerConfig::Vless {
-                tag: "ws-server".to_string(),
-                address: "example.com".to_string(),
-                port: 443,
-                id: "test-uuid".to_string(),
-                encryption: "none".to_string(),
-                flow: "".to_string(),
-                network: "ws".to_string(),
-                security: "tls".to_string(),
-                tls_settings: Some(Box::new(TlsSettings {
-                    server_name: "example.com".to_string(),
-                    fingerprint: "chrome".to_string(),
-                    alpn: Some(vec!["h2".to_string(), "http/1.1".to_string()]),
-                    allow_insecure: true,
-                    public_key: None,
-                    short_id: None,
-                    spider_x: None,
-                })),
-                network_settings: Some(NetworkSettings::WebSocket {
-                    path: "/ws".to_string(),
-                    host: "example.com".to_string(),
-                }),
-            }
-        ];
+        let servers = vec![ServerConfig::Vless {
+            tag: "ws-server".to_string(),
+            address: "example.com".to_string(),
+            port: 443,
+            id: "test-uuid".to_string(),
+            encryption: "none".to_string(),
+            flow: "".to_string(),
+            network: "ws".to_string(),
+            security: "tls".to_string(),
+            tls_settings: Some(Box::new(TlsSettings {
+                server_name: "example.com".to_string(),
+                fingerprint: "chrome".to_string(),
+                alpn: Some(vec!["h2".to_string(), "http/1.1".to_string()]),
+                allow_insecure: true,
+                public_key: None,
+                short_id: None,
+                spider_x: None,
+            })),
+            network_settings: Some(NetworkSettings::WebSocket {
+                path: "/ws".to_string(),
+                host: "example.com".to_string(),
+            }),
+        }];
 
         let result = generate_outbounds(&servers);
         assert!(result.is_ok());
@@ -579,14 +580,29 @@ mod tests {
         assert_eq!(vless["protocol"], "vless");
         assert_eq!(vless["settings"]["vnext"][0]["address"], "151.101.3.8");
         assert_eq!(vless["settings"]["vnext"][0]["port"], 80);
-        assert_eq!(vless["settings"]["vnext"][0]["users"][0]["id"], "test-uuid-123");
-        assert_eq!(vless["settings"]["vnext"][0]["users"][0]["encryption"], "none");
+        assert_eq!(
+            vless["settings"]["vnext"][0]["users"][0]["id"],
+            "test-uuid-123"
+        );
+        assert_eq!(
+            vless["settings"]["vnext"][0]["users"][0]["encryption"],
+            "none"
+        );
         assert_eq!(vless["streamSettings"]["network"], "ws");
         assert_eq!(vless["streamSettings"]["security"], "");
-        assert_eq!(vless["streamSettings"]["wsSettings"]["path"], "/---@MiTiVPN/---@MiTiVPN/---@MiTiVPN/---@MiTiVPN/---@MiTiVPN");
-        assert_eq!(vless["streamSettings"]["wsSettings"]["host"], "mitivpn.global.ssl.fastly.net");
+        assert_eq!(
+            vless["streamSettings"]["wsSettings"]["path"],
+            "/---@MiTiVPN/---@MiTiVPN/---@MiTiVPN/---@MiTiVPN/---@MiTiVPN"
+        );
+        assert_eq!(
+            vless["streamSettings"]["wsSettings"]["host"],
+            "mitivpn.global.ssl.fastly.net"
+        );
 
-        println!("Generated config:\n{}", serde_json::to_string_pretty(&vless).unwrap());
+        println!(
+            "Generated config:\n{}",
+            serde_json::to_string_pretty(&vless).unwrap()
+        );
     }
 
     #[test]
@@ -610,13 +626,31 @@ mod tests {
         assert_eq!(vless["settings"]["vnext"][0]["port"], 22955);
         assert_eq!(vless["streamSettings"]["network"], "grpc");
         assert_eq!(vless["streamSettings"]["security"], "reality");
-        assert_eq!(vless["streamSettings"]["realitySettings"]["serverName"], "one-piece.com");
-        assert_eq!(vless["streamSettings"]["realitySettings"]["fingerprint"], "chrome");
-        assert_eq!(vless["streamSettings"]["realitySettings"]["publicKey"], "9Mt_Y8J_qDb1khlieWnhDSAq-kGtLHw6aOKgkAzOMms");
-        assert_eq!(vless["streamSettings"]["realitySettings"]["shortId"], "6ba85179e30d4fc2");
-        assert_eq!(vless["streamSettings"]["grpcSettings"]["serviceName"], "grpc");
+        assert_eq!(
+            vless["streamSettings"]["realitySettings"]["serverName"],
+            "one-piece.com"
+        );
+        assert_eq!(
+            vless["streamSettings"]["realitySettings"]["fingerprint"],
+            "chrome"
+        );
+        assert_eq!(
+            vless["streamSettings"]["realitySettings"]["publicKey"],
+            "9Mt_Y8J_qDb1khlieWnhDSAq-kGtLHw6aOKgkAzOMms"
+        );
+        assert_eq!(
+            vless["streamSettings"]["realitySettings"]["shortId"],
+            "6ba85179e30d4fc2"
+        );
+        assert_eq!(
+            vless["streamSettings"]["grpcSettings"]["serviceName"],
+            "grpc"
+        );
 
-        println!("Generated VLESS REALITY gRPC config:\n{}", serde_json::to_string_pretty(&vless).unwrap());
+        println!(
+            "Generated VLESS REALITY gRPC config:\n{}",
+            serde_json::to_string_pretty(&vless).unwrap()
+        );
     }
 
     #[test]
@@ -631,14 +665,25 @@ mod tests {
         let vless = &result["outbounds"][0];
 
         // UUID should be exactly as in URL, NOT the sid value
-        let parsed_id = vless["settings"]["vnext"][0]["users"][0]["id"].as_str().unwrap();
-        assert_eq!(parsed_id, "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
-            "UUID was incorrectly parsed as: {}", parsed_id);
+        let parsed_id = vless["settings"]["vnext"][0]["users"][0]["id"]
+            .as_str()
+            .unwrap();
+        assert_eq!(
+            parsed_id, "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+            "UUID was incorrectly parsed as: {}",
+            parsed_id
+        );
 
         // Verify sid is correctly in realitySettings, not in id
-        assert_eq!(vless["streamSettings"]["realitySettings"]["shortId"], "6ba85179e30d4fc2");
+        assert_eq!(
+            vless["streamSettings"]["realitySettings"]["shortId"],
+            "6ba85179e30d4fc2"
+        );
 
         println!("UUID parsed correctly: {}", parsed_id);
-        println!("shortId parsed correctly: {}", vless["streamSettings"]["realitySettings"]["shortId"]);
+        println!(
+            "shortId parsed correctly: {}",
+            vless["streamSettings"]["realitySettings"]["shortId"]
+        );
     }
 }

@@ -39,24 +39,21 @@
 use anyhow::Result;
 
 // Parser modules
+mod hysteria2;
 mod shadowsocks;
+mod trojan;
 mod vless;
 mod vmess;
-mod trojan;
-mod hysteria2;
 
 // Re-export parser implementations
+use hysteria2::Hysteria2Parser;
 use shadowsocks::ShadowsocksParser;
+use trojan::TrojanParser;
 use vless::VlessParser;
 use vmess::VmessParser;
-use trojan::TrojanParser;
-use hysteria2::Hysteria2Parser;
 
 // Re-export common types
-pub use shared::{
-    ServerConfig, TlsSettings, NetworkSettings,
-    sanitize_tag, check_is_warp,
-};
+pub use shared::{check_is_warp, sanitize_tag, NetworkSettings, ServerConfig, TlsSettings};
 
 /// Shared types and utilities for parser modules.
 pub mod shared;

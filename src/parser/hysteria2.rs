@@ -5,9 +5,7 @@
 use anyhow::{Context, Result};
 use std::collections::HashMap;
 
-use crate::parser::shared::{
-    decode_tag, parse_query, sanitize_tag, ServerConfig,
-};
+use crate::parser::shared::{decode_tag, parse_query, sanitize_tag, ServerConfig};
 use crate::parser::UrlParser;
 
 /// Raw Hysteria2 data parsed from URL.
@@ -77,7 +75,7 @@ impl UrlParser for Hysteria2Parser {
                 (host_port.to_string(), 443)
             };
 
-            (decode_tag(auth, || String::new()), host, port)
+            (decode_tag(auth, String::new), host, port)
         } else {
             // No auth, parse host:port
             let (host, port) = if let Some(colon_pos) = host_part.rfind(':') {
@@ -147,7 +145,13 @@ mod tests {
         assert!(result.is_ok());
         let server = result.unwrap();
         match server {
-            ServerConfig::Hysteria2 { password, address, port, tag, .. } => {
+            ServerConfig::Hysteria2 {
+                password,
+                address,
+                port,
+                tag,
+                ..
+            } => {
                 assert_eq!(password, "password");
                 assert_eq!(address, "example.com");
                 assert_eq!(port, 443);
@@ -166,7 +170,12 @@ mod tests {
         assert!(result.is_ok());
         let server = result.unwrap();
         match server {
-            ServerConfig::Hysteria2 { obfs, obfs_password, sni, .. } => {
+            ServerConfig::Hysteria2 {
+                obfs,
+                obfs_password,
+                sni,
+                ..
+            } => {
                 assert_eq!(obfs, Some("salamander".to_string()));
                 assert_eq!(obfs_password, Some("secret".to_string()));
                 assert_eq!(sni, Some("example.com".to_string()));

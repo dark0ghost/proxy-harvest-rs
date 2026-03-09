@@ -252,10 +252,7 @@ pub fn parse_query(query: &str) -> Result<HashMap<String, String>> {
 ///
 /// Returns TlsSettings or an error if parsing fails.
 pub fn parse_tls_settings(params: &HashMap<String, String>, security: &str) -> Result<TlsSettings> {
-    let server_name = params
-        .get("sni")
-        .map(|s| s.to_string())
-        .unwrap_or_default();
+    let server_name = params.get("sni").map(|s| s.to_string()).unwrap_or_default();
     let fingerprint = params
         .get("fp")
         .map(|s| s.to_string())
@@ -285,7 +282,13 @@ pub fn parse_tls_settings(params: &HashMap<String, String>, security: &str) -> R
     };
 
     let spider_x = if security == "reality" {
-        Some(params.get("spx").or_else(|| params.get("path")).map(|s| s.to_string()).unwrap_or_else(|| "/".to_string()))
+        Some(
+            params
+                .get("spx")
+                .or_else(|| params.get("path"))
+                .map(|s| s.to_string())
+                .unwrap_or_else(|| "/".to_string()),
+        )
     } else {
         None
     };
@@ -437,7 +440,10 @@ pub fn decode_tag<F>(encoded: &str, default_fn: F) -> String
 where
     F: FnOnce() -> String,
 {
-    decode(encoded).ok().map(|s| s.to_string()).unwrap_or_else(default_fn)
+    decode(encoded)
+        .ok()
+        .map(|s| s.to_string())
+        .unwrap_or_else(default_fn)
 }
 
 /// Helper function to decode base64 with multiple variants.

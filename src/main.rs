@@ -33,7 +33,12 @@ fn main() -> Result<()> {
         anyhow::bail!("At least one URL must be provided via --url");
     }
 
-    process_servers(&args.url, &args.output, args.check_availability, args.timeout)?;
+    process_servers(
+        &args.url,
+        &args.output,
+        args.check_availability,
+        args.timeout,
+    )?;
 
     Ok(())
 }

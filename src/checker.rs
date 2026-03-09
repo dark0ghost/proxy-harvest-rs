@@ -1,9 +1,9 @@
+use crate::parser::ServerConfig;
 use anyhow::Result;
 use log::{info, warn};
 use rayon::prelude::*;
 use std::net::{TcpStream, ToSocketAddrs};
 use std::time::Duration;
-use crate::parser::ServerConfig;
 
 /// Check if a proxy server is accessible by attempting a TCP connection
 pub fn check_server_availability(server: &ServerConfig, timeout_secs: u64) -> bool {
@@ -49,7 +49,10 @@ pub fn filter_available_servers(
     timeout_secs: u64,
 ) -> Result<Vec<ServerConfig>> {
     let total = servers.len();
-    info!("Checking availability of {} servers (timeout: {}s) using parallel processing...", total, timeout_secs);
+    info!(
+        "Checking availability of {} servers (timeout: {}s) using parallel processing...",
+        total, timeout_secs
+    );
 
     let available: Vec<ServerConfig> = servers
         .into_par_iter()
@@ -95,6 +98,9 @@ mod tests {
         let result = filter_available_servers(servers, 1);
 
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("No available servers"));
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("No available servers"));
     }
 }

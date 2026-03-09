@@ -57,10 +57,7 @@ impl UrlParser for VmessParser {
             anyhow::bail!("Missing 'port' field")
         };
 
-        let id = v["id"]
-            .as_str()
-            .context("Missing 'id' field")?
-            .to_string();
+        let id = v["id"].as_str().context("Missing 'id' field")?.to_string();
 
         let alter_id: u16 = if let Some(a) = v["aid"].as_u64() {
             a as u16
@@ -76,15 +73,9 @@ impl UrlParser for VmessParser {
             .unwrap_or("auto")
             .to_string();
 
-        let network = v["net"]
-            .as_str()
-            .unwrap_or("tcp")
-            .to_string();
+        let network = v["net"].as_str().unwrap_or("tcp").to_string();
 
-        let tls = v["tls"]
-            .as_str()
-            .unwrap_or("")
-            .to_string();
+        let tls = v["tls"].as_str().unwrap_or("").to_string();
 
         let tag = v["ps"]
             .as_str()
@@ -118,14 +109,8 @@ impl UrlParser for VmessParser {
         // Parse network settings
         let network_settings = match network.as_str() {
             "ws" => {
-                let path = v["path"]
-                    .as_str()
-                    .unwrap_or("/")
-                    .to_string();
-                let host = v["host"]
-                    .as_str()
-                    .unwrap_or("")
-                    .to_string();
+                let path = v["path"].as_str().unwrap_or("/").to_string();
+                let host = v["host"].as_str().unwrap_or("").to_string();
                 Some(NetworkSettings::WebSocket { path, host })
             }
             "grpc" => {
@@ -140,10 +125,7 @@ impl UrlParser for VmessParser {
                 })
             }
             "tcp" => {
-                let header_type = v["type"]
-                    .as_str()
-                    .unwrap_or("none")
-                    .to_string();
+                let header_type = v["type"].as_str().unwrap_or("none").to_string();
                 Some(NetworkSettings::Tcp { header_type })
             }
             _ => None,
@@ -199,7 +181,13 @@ mod tests {
         assert!(result.is_ok());
         let server = result.unwrap();
         match server {
-            ServerConfig::Vmess { address, port, id, tag, .. } => {
+            ServerConfig::Vmess {
+                address,
+                port,
+                id,
+                tag,
+                ..
+            } => {
                 assert_eq!(address, "example.com");
                 assert_eq!(port, 443);
                 assert_eq!(id, "test-uuid");

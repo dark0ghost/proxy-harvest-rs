@@ -45,10 +45,9 @@ impl UrlParser for VlessParser {
         let host = caps.get(2).unwrap().as_str().to_string();
         let port: u16 = caps.get(3).unwrap().as_str().parse()?;
         let query = caps.get(4).unwrap().as_str();
-        let tag = decode_tag(
-            caps.get(5).map(|m| m.as_str()).unwrap_or(""),
-            || format!("vless-{}", idx),
-        );
+        let tag = decode_tag(caps.get(5).map(|m| m.as_str()).unwrap_or(""), || {
+            format!("vless-{}", idx)
+        });
 
         // Parse query parameters
         let params = parse_query(query)?;
@@ -103,11 +102,11 @@ impl UrlParser for VlessParser {
     fn to_server_config(raw: VlessRaw, idx: usize) -> Result<ServerConfig> {
         // Check if this is a WARP server
         let mut params = HashMap::new();
-        if let Some(ref net) = raw.network_settings {
-            if let crate::parser::shared::NetworkSettings::WebSocket { path, host } = net {
-                params.insert("path".to_string(), path.clone());
-                params.insert("host".to_string(), host.clone());
-            }
+        if let Some(crate::parser::shared::NetworkSettings::WebSocket { path, host }) =
+            &raw.network_settings
+        {
+            params.insert("path".to_string(), path.clone());
+            params.insert("host".to_string(), host.clone());
         }
         let is_warp = check_is_warp(&raw.tag, &params);
         let clean_tag = sanitize_tag(&raw.tag, "vless", idx, is_warp);
@@ -140,7 +139,14 @@ mod tests {
         assert!(result.is_ok());
         let server = result.unwrap();
         match server {
-            ServerConfig::Vless { id, address, port, network, security, .. } => {
+            ServerConfig::Vless {
+                id,
+                address,
+                port,
+                network,
+                security,
+                ..
+            } => {
                 assert_eq!(id, "test-uuid");
                 assert_eq!(address, "france-paris.hostinger.kcartik-vps.com");
                 assert_eq!(port, 443);
@@ -160,11 +166,18 @@ mod tests {
         assert!(result.is_ok());
         let server = result.unwrap();
         match server {
-            ServerConfig::Vless { security, tls_settings, .. } => {
+            ServerConfig::Vless {
+                security,
+                tls_settings,
+                ..
+            } => {
                 assert_eq!(security, "reality");
                 assert!(tls_settings.is_some());
                 let tls = tls_settings.unwrap();
-                assert_eq!(tls.public_key, Some("9Mt_Y8J_qDb1khlieWnhDSAq-kGtLHw6aOKgkAzOMms".to_string()));
+                assert_eq!(
+                    tls.public_key,
+                    Some("9Mt_Y8J_qDb1khlieWnhDSAq-kGtLHw6aOKgkAzOMms".to_string())
+                );
                 assert_eq!(tls.short_id, Some("6ba85179e30d4fc2".to_string()));
             }
             _ => panic!("Expected Vless config"),

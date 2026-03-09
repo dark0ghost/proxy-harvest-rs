@@ -7,8 +7,8 @@ use regex::Regex;
 use std::collections::HashMap;
 
 use crate::parser::shared::{
-    decode_tag, parse_network_settings, parse_query, parse_tls_settings,
-    sanitize_tag, NetworkSettings, ServerConfig, TlsSettings,
+    decode_tag, parse_network_settings, parse_query, parse_tls_settings, sanitize_tag,
+    NetworkSettings, ServerConfig, TlsSettings,
 };
 use crate::parser::UrlParser;
 
@@ -40,17 +40,15 @@ impl UrlParser for TrojanParser {
         let re = Regex::new(r"^trojan://([^@]+)@([^:]+):(\d+)/?\??([^#]*)(?:#(.*))?$")?;
         let caps = re.captures(url).context("Invalid trojan URL format")?;
 
-        let password = decode_tag(
-            caps.get(1).map(|m| m.as_str()).unwrap_or(""),
-            || String::new(),
-        );
+        let password = decode_tag(caps.get(1).map(|m| m.as_str()).unwrap_or(""), || {
+            String::new()
+        });
         let host = caps.get(2).unwrap().as_str().to_string();
         let port: u16 = caps.get(3).unwrap().as_str().parse()?;
         let query = caps.get(4).map(|m| m.as_str()).unwrap_or("");
-        let tag = decode_tag(
-            caps.get(5).map(|m| m.as_str()).unwrap_or(""),
-            || format!("trojan-{}", idx),
-        );
+        let tag = decode_tag(caps.get(5).map(|m| m.as_str()).unwrap_or(""), || {
+            format!("trojan-{}", idx)
+        });
 
         let params = if !query.is_empty() {
             parse_query(query)?
@@ -125,7 +123,13 @@ mod tests {
         assert!(result.is_ok());
         let server = result.unwrap();
         match server {
-            ServerConfig::Trojan { password, address, port, tag, .. } => {
+            ServerConfig::Trojan {
+                password,
+                address,
+                port,
+                tag,
+                ..
+            } => {
                 assert_eq!(password, "password123");
                 assert_eq!(address, "example.com");
                 assert_eq!(port, 443);
@@ -144,7 +148,9 @@ mod tests {
         assert!(result.is_ok());
         let server = result.unwrap();
         match server {
-            ServerConfig::Trojan { network, security, .. } => {
+            ServerConfig::Trojan {
+                network, security, ..
+            } => {
                 assert_eq!(network, "ws");
                 assert_eq!(security, "tls");
             }

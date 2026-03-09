@@ -54,12 +54,12 @@
 #![warn(missing_docs)]
 #![warn(rustdoc::missing_crate_level_docs)]
 
+/// Proxy availability checking
+pub mod checker;
 /// Configuration generation and management
 pub mod config;
 /// VPN URL parsing utilities
 pub mod parser;
-/// Proxy availability checking
-pub mod checker;
 
 use anyhow::Result;
 use std::path::Path;
