@@ -746,4 +746,55 @@ mod tests {
             vless["streamSettings"]["realitySettings"]["shortId"]
         );
     }
+
+    #[test]
+    fn test_generate_outbound_vless_reality_tcp_full() {
+        use crate::parser::parse_servers;
+
+        let url = "vless://4fd2d5f6-d417-0bb8-9331-e20afde2fcd2@109.120.189.8:52006?flow=xtls-rprx-vision&encryption=none&type=tcp&security=reality&fp=qq&sni=max.ru&pbk=4CH3o5zOMcFNMbnwXnkAg0FFepmsc0QzhahXkUzb1ik&sid=d8c6b58bcbb0c323#%5BVP1596%5D%E2%AD%90%20%F0%9F%87%AB%F0%9F%87%AE%20FIN%20%F0%9F%93%91%20%5BVK%5D";
+        let servers = parse_servers(url).unwrap();
+        assert_eq!(servers.len(), 1);
+
+        let result = generate_outbounds(&servers);
+        assert!(result.is_ok());
+
+        let config = result.unwrap();
+        let outbounds = config["outbounds"].as_array().unwrap();
+
+        let vless = &outbounds[0];
+        assert_eq!(vless["protocol"], "vless");
+        assert_eq!(vless["settings"]["vnext"][0]["address"], "109.120.189.8");
+        assert_eq!(vless["settings"]["vnext"][0]["port"], 52006);
+        assert_eq!(
+            vless["settings"]["vnext"][0]["users"][0]["id"],
+            "4fd2d5f6-d417-0bb8-9331-e20afde2fcd2"
+        );
+        assert_eq!(
+            vless["settings"]["vnext"][0]["users"][0]["flow"],
+            "xtls-rprx-vision"
+        );
+        assert_eq!(vless["streamSettings"]["network"], "tcp");
+        assert_eq!(vless["streamSettings"]["security"], "reality");
+        assert_eq!(
+            vless["streamSettings"]["realitySettings"]["publicKey"],
+            "4CH3o5zOMcFNMbnwXnkAg0FFepmsc0QzhahXkUzb1ik"
+        );
+        assert_eq!(
+            vless["streamSettings"]["realitySettings"]["shortId"],
+            "d8c6b58bcbb0c323"
+        );
+        assert_eq!(
+            vless["streamSettings"]["realitySettings"]["serverName"],
+            "max.ru"
+        );
+        assert_eq!(
+            vless["streamSettings"]["realitySettings"]["fingerprint"],
+            "qq"
+        );
+
+        println!(
+            "Generated VLESS Reality TCP config:\n{}",
+            serde_json::to_string_pretty(&vless).unwrap()
+        );
+    }
 }

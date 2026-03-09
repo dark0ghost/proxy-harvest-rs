@@ -281,4 +281,50 @@ mod tests {
             _ => panic!("Expected Vless config"),
         }
     }
+
+    #[test]
+    fn test_parse_vless_reality_full() {
+        let parser = VlessParser;
+        let url = "vless://4fd2d5f6-d417-0bb8-9331-e20afde2fcd2@109.120.189.8:52006?flow=xtls-rprx-vision&encryption=none&type=tcp&security=reality&fp=qq&sni=max.ru&pbk=4CH3o5zOMcFNMbnwXnkAg0FFepmsc0QzhahXkUzb1ik&sid=d8c6b58bcbb0c323#%5BVP1596%5D%E2%AD%90%20%F0%9F%87%AB%F0%9F%87%AE%20FIN%20%F0%9F%93%91%20%5BVK%5D";
+        let result = parser.parse(url, 0);
+
+        assert!(result.is_ok());
+        let server = result.unwrap();
+        match server {
+            ServerConfig::Vless {
+                id,
+                address,
+                port,
+                encryption,
+                flow,
+                network,
+                security,
+                tls_settings,
+                tag,
+                ..
+            } => {
+                assert_eq!(id, "4fd2d5f6-d417-0bb8-9331-e20afde2fcd2");
+                assert_eq!(address, "109.120.189.8");
+                assert_eq!(port, 52006);
+                assert_eq!(encryption, "none");
+                assert_eq!(flow, "xtls-rprx-vision");
+                assert_eq!(network, "tcp");
+                assert_eq!(security, "reality");
+
+                assert!(tls_settings.is_some());
+                let tls = tls_settings.unwrap();
+                assert_eq!(tls.server_name, "max.ru");
+                assert_eq!(tls.fingerprint, "qq");
+                assert_eq!(
+                    tls.public_key,
+                    Some("4CH3o5zOMcFNMbnwXnkAg0FFepmsc0QzhahXkUzb1ik".to_string())
+                );
+                assert_eq!(tls.short_id, Some("d8c6b58bcbb0c323".to_string()));
+
+                assert!(tag.contains("vp1596"));
+                assert!(tag.contains("fin"));
+            }
+            _ => panic!("Expected Vless config"),
+        }
+    }
 }

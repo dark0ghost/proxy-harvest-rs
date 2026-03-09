@@ -399,6 +399,7 @@ pub fn parse_network_settings(
 /// * `is_warp` - Whether this is a WARP server
 /// * `address` - Server address for uniqueness (optional)
 /// * `port` - Server port for uniqueness (optional)
+/// * `id` - Server ID/UUID for uniqueness (optional, for VLESS/Trojan/VMess)
 ///
 /// # Returns
 ///
@@ -435,9 +436,12 @@ pub fn sanitize_tag(
     }
 
     // Add uniqueness suffix if address and port are provided
+    // Include address:port in hash to ensure uniqueness for same IP:port with different UUIDs
     if let (Some(addr), Some(p)) = (address, port) {
         let mut hasher = DefaultHasher::new();
-        format!("{}:{}:{}", protocol, addr, p).hash(&mut hasher);
+        // Include protocol, address, port, and index in hash
+        // This ensures servers with same IP:port but different positions get different tags
+        format!("{}:{}:{}:{}", protocol, addr, p, idx).hash(&mut hasher);
         let hash = hasher.finish();
         let short_hash = format!("{:x}", hash)[..4].to_string();
         base_tag = format!("{}-{}", base_tag, short_hash);

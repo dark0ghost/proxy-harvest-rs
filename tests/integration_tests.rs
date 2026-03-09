@@ -1,6 +1,7 @@
 use proxy_harvest_rs::config::{outbound, routing};
 use proxy_harvest_rs::parser::{parse_servers, ServerConfig};
 use std::collections::HashSet;
+use std::fs;
 
 const SAMPLE_SERVERS: &str = r#"
 ss://Y2hhY2hhMjAtaWV0Zi1wb2x5MTMwNTpUWTI5bWJaYmdwbGhjNHZUVDN4aDNz@62.133.60.43:36456#test-ss-server
@@ -337,4 +338,73 @@ vless://uuid-2@example.com:443?encryption=none&security=tls&type=tcp#unique-serv
     // Verify all tags are unique
     let unique_tags: HashSet<&str> = unique_servers.iter().map(|s| s.tag()).collect();
     assert_eq!(unique_tags.len(), 4, "Expected all tags to be unique");
+}
+
+#[test]
+fn test_same_ip_different_uuid() {
+    // Test case for bug where same IP:port with different UUIDs might be confused
+    let urls = r#"
+vless://c0ab2d09-bb15-0bb8-9e04-d0d57fb50dc6@109.120.189.25:52006?flow=xtls-rprx-vision&encryption=none&type=tcp&security=reality&fp=chrome&sni=max.ru&pbk=4CH3o5zOMcFNMbnwXnkAg0FFepmsc0QzhahXkUzb1ik&sid=d8c6b58bcbb0c323#FIN-VK
+vless://fba7dc74-ed99-0bb8-8b5f-a822f254475f@109.120.189.8:52006?flow=xtls-rprx-vision&encryption=none&type=tcp&security=reality&fp=chrome&sni=max.ru&pbk=4CH3o5zOMcFNMbnwXnkAg0FFepmsc0QzhahXkUzb1ik&sid=d8c6b58bcbb0c323#FIN-VK
+vless://d0722d01-7ee8-0bb8-85e1-d590ad0e60d3@109.120.189.8:52006?flow=xtls-rprx-vision&encryption=none&type=tcp&security=reality&fp=qq&sni=max.ru&pbk=4CH3o5zOMcFNMbnwXnkAg0FFepmsc0QzhahXkUzb1ik&sid=d8c6b58bcbb0c323#FIN-VK
+vless://4fd2d5f6-d417-0bb8-9331-e20afde2fcd2@109.120.189.8:52006?flow=xtls-rprx-vision&encryption=none&type=tcp&security=reality&fp=qq&sni=max.ru&pbk=4CH3o5zOMcFNMbnwXnkAg0FFepmsc0QzhahXkUzb1ik&sid=d8c6b58bcbb0c323#FIN-VK
+"#;
+
+    let servers = parse_servers(urls).unwrap();
+    assert_eq!(servers.len(), 4, "Expected 4 servers");
+
+    // Check that each server has correct UUID
+    let mut uuids: Vec<String> = Vec::new();
+    for server in &servers {
+        if let ServerConfig::Vless { id, .. } = server {
+            uuids.push(id.clone());
+        }
+    }
+
+    assert!(uuids.contains(&"c0ab2d09-bb15-0bb8-9e04-d0d57fb50dc6".to_string()));
+    assert!(uuids.contains(&"fba7dc74-ed99-0bb8-8b5f-a822f254475f".to_string()));
+    assert!(uuids.contains(&"d0722d01-7ee8-0bb8-85e1-d590ad0e60d3".to_string()));
+    assert!(uuids.contains(&"4fd2d5f6-d417-0bb8-9331-e20afde2fcd2".to_string()));
+
+    // Verify that servers with same IP:port have different UUIDs
+    let servers_same_ip: Vec<_> = servers
+        .iter()
+        .filter(|s| {
+            if let ServerConfig::Vless { address, port, .. } = s {
+                address == "109.120.189.8" && *port == 52006
+            } else {
+                false
+            }
+        })
+        .collect();
+
+    assert_eq!(
+        servers_same_ip.len(),
+        3,
+        "Expected 3 servers with same IP:port"
+    );
+
+    let mut same_ip_uuids: Vec<String> = Vec::new();
+    for server in &servers_same_ip {
+        if let ServerConfig::Vless { id, .. } = server {
+            same_ip_uuids.push(id.clone());
+        }
+    }
+
+    // All UUIDs should be different
+    assert_eq!(same_ip_uuids.len(), 3);
+    let unique_uuids: HashSet<_> = same_ip_uuids.iter().collect();
+    assert_eq!(
+        unique_uuids.len(),
+        3,
+        "All UUIDs should be unique for same IP:port"
+    );
+
+    // Verify all tags are unique
+    let all_tags: Vec<&str> = servers.iter().map(|s| s.tag()).collect();
+    let unique_tags: HashSet<_> = all_tags.iter().collect();
+    assert_eq!(unique_tags.len(), 4, "All tags should be unique");
+
+    println!("All UUIDs for same IP:port: {:?}", same_ip_uuids);
+    println!("All tags: {:?}", all_tags);
 }
