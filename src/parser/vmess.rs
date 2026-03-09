@@ -146,7 +146,14 @@ impl UrlParser for VmessParser {
     }
 
     fn to_server_config(raw: VmessRaw, idx: usize) -> Result<ServerConfig> {
-        let clean_tag = sanitize_tag(&raw.tag, "vmess", idx, false);
+        let clean_tag = sanitize_tag(
+            &raw.tag,
+            "vmess",
+            idx,
+            false,
+            Some(&raw.address),
+            Some(raw.port),
+        );
 
         Ok(ServerConfig::Vmess {
             tag: clean_tag,
@@ -191,7 +198,7 @@ mod tests {
                 assert_eq!(address, "example.com");
                 assert_eq!(port, 443);
                 assert_eq!(id, "test-uuid");
-                assert_eq!(tag, "test-vmess");
+                assert!(tag.starts_with("test-vmess"));
             }
             _ => panic!("Expected Vmess config"),
         }

@@ -94,7 +94,14 @@ impl UrlParser for TrojanParser {
     }
 
     fn to_server_config(raw: TrojanRaw, idx: usize) -> Result<ServerConfig> {
-        let clean_tag = sanitize_tag(&raw.tag, "trojan", idx, false);
+        let clean_tag = sanitize_tag(
+            &raw.tag,
+            "trojan",
+            idx,
+            false,
+            Some(&raw.address),
+            Some(raw.port),
+        );
 
         Ok(ServerConfig::Trojan {
             tag: clean_tag,
@@ -133,7 +140,7 @@ mod tests {
                 assert_eq!(password, "password123");
                 assert_eq!(address, "example.com");
                 assert_eq!(port, 443);
-                assert_eq!(tag, "test-trojan");
+                assert!(tag.starts_with("test-trojan"));
             }
             _ => panic!("Expected Trojan config"),
         }

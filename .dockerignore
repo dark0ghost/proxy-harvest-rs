@@ -1,0 +1,43 @@
+# Rust build artifacts
+/target/
+**/target/
+
+# IDE
+.idea/
+.vscode/
+*.iml
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Test output
+test-output/
+*.log
+
+# Configs (mounted at runtime)
+configs/
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# Git
+.git/
+.gitignore
+
+# Documentation
+docs/
+*.md
+!README.md
+
+# CI/CD
+.github/
+
+# Docker (except test Dockerfile)
+Dockerfile
+!docker/test/Dockerfile
+
+# Test scripts (we have them in scripts/)
+test-*.sh

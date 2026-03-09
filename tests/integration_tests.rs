@@ -327,20 +327,14 @@ vless://uuid-2@example.com:443?encryption=none&security=tls&type=tcp#unique-serv
         }
     }
 
-    // After deduplication: 3 servers (one duplicate removed)
+    // After deduplication: 4 servers (tags are now unique due to address:port hash)
     assert_eq!(
         unique_servers.len(),
-        3,
-        "Expected 3 servers after deduplication"
+        4,
+        "Expected 4 servers after deduplication (unique tags due to address:port hash)"
     );
 
-    // Verify the duplicate tag appears only once
-    let duplicate_count = unique_servers
-        .iter()
-        .filter(|s| s.tag() == "duplicate-server")
-        .count();
-    assert_eq!(
-        duplicate_count, 1,
-        "Duplicate server should appear only once"
-    );
+    // Verify all tags are unique
+    let unique_tags: HashSet<&str> = unique_servers.iter().map(|s| s.tag()).collect();
+    assert_eq!(unique_tags.len(), 4, "Expected all tags to be unique");
 }

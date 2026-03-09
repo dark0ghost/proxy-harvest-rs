@@ -38,14 +38,22 @@ impl UrlParser for VlessParser {
 
     fn parse_raw(&self, url: &str, idx: usize) -> Result<VlessRaw> {
         // Format: vless://uuid@host:port[/]?params#tag
-        let re = Regex::new(r"^vless://([^@]+)@([^:]+):(\d+)/?\?([^#]+)(?:#(.*))?$")?;
+        // Supports both IPv4 (host:port) and IPv6 ([ipv6]:port) formats
+        let re =
+            Regex::new(r"^vless://([^@]+)@(?:\[([^\]]+)\]|([^:]+)):(\d+)/?\?([^#]+)(?:#(.*))?$")?;
         let caps = re.captures(url).context("Invalid vless URL format")?;
 
         let id = caps.get(1).unwrap().as_str().to_string();
-        let host = caps.get(2).unwrap().as_str().to_string();
-        let port: u16 = caps.get(3).unwrap().as_str().parse()?;
-        let query = caps.get(4).unwrap().as_str();
-        let tag = decode_tag(caps.get(5).map(|m| m.as_str()).unwrap_or(""), || {
+        // For IPv6, group 2 contains the address inside brackets
+        // For IPv4/hostname, group 3 contains the address
+        let host = caps
+            .get(2)
+            .map(|m| m.as_str().to_string())
+            .or_else(|| caps.get(3).map(|m| m.as_str().to_string()))
+            .context("Missing host in vless URL")?;
+        let port: u16 = caps.get(4).unwrap().as_str().parse()?;
+        let query = caps.get(5).unwrap().as_str();
+        let tag = decode_tag(caps.get(6).map(|m| m.as_str()).unwrap_or(""), || {
             format!("vless-{}", idx)
         });
 
@@ -109,7 +117,14 @@ impl UrlParser for VlessParser {
             params.insert("host".to_string(), host.clone());
         }
         let is_warp = check_is_warp(&raw.tag, &params);
-        let clean_tag = sanitize_tag(&raw.tag, "vless", idx, is_warp);
+        let clean_tag = sanitize_tag(
+            &raw.tag,
+            "vless",
+            idx,
+            is_warp,
+            Some(&raw.address),
+            Some(raw.port),
+        );
 
         Ok(ServerConfig::Vless {
             tag: clean_tag,
@@ -188,5 +203,82 @@ mod tests {
     fn test_parser_prefixes() {
         let parser = VlessParser;
         assert!(parser.prefixes().contains(&"vless://"));
+    }
+
+    #[test]
+    fn test_parse_vless_ipv6_mapped_ipv4() {
+        let parser = VlessParser;
+        let url = "vless://c060fdda-385d-aea1-3982-5a6c92876481@[::ffff:5585:f92b]:58387?security=none&encryption=none&host=arvancloud.ir&headerType=http&type=tcp";
+        let result = parser.parse(url, 0);
+
+        assert!(result.is_ok());
+        let server = result.unwrap();
+        match server {
+            ServerConfig::Vless {
+                id, address, port, ..
+            } => {
+                assert_eq!(id, "c060fdda-385d-aea1-3982-5a6c92876481");
+                assert_eq!(address, "::ffff:5585:f92b");
+                assert_eq!(port, 58387);
+            }
+            _ => panic!("Expected Vless config"),
+        }
+    }
+
+    #[test]
+    fn test_parse_vless_ipv6_full() {
+        let parser = VlessParser;
+        let url = "vless://c060fdfd-1f7a-8986-1ea5-7d4bb5a04302@[::ffff:5eb8:071b]:49888?security=none&encryption=none&headerType=none&type=tcp";
+        let result = parser.parse(url, 0);
+
+        assert!(result.is_ok());
+        let server = result.unwrap();
+        match server {
+            ServerConfig::Vless {
+                id, address, port, ..
+            } => {
+                assert_eq!(id, "c060fdfd-1f7a-8986-1ea5-7d4bb5a04302");
+                assert_eq!(address, "::ffff:5eb8:071b");
+                assert_eq!(port, 49888);
+            }
+            _ => panic!("Expected Vless config"),
+        }
+    }
+
+    #[test]
+    fn test_parse_vless_ipv6_with_tag() {
+        let parser = VlessParser;
+        let url = "vless://c060fdda-385d-aea1-3982-5a6c92876481@[::ffff:5585:f92b]:58387?security=none&encryption=none&host=arvancloud.ir&headerType=http&type=tcp#@Proxyiranip";
+        let result = parser.parse(url, 0);
+
+        assert!(result.is_ok());
+        let server = result.unwrap();
+        match server {
+            ServerConfig::Vless { tag, .. } => {
+                // Tag is normalized by sanitize_tag (lowercase, special chars removed)
+                assert!(tag.contains("proxyiranip"));
+            }
+            _ => panic!("Expected Vless config"),
+        }
+    }
+
+    #[test]
+    fn test_parse_vless_pure_ipv6() {
+        let parser = VlessParser;
+        let url = "vless://c3077f1d-3b94-4a83-aecb-f4e9beb4dc7e@[2001:19f0:7400:8c45:5400:04ff:feef:4ccb]:2083?security=none&encryption=none&host=speedtest.net&headerType=http&type=tcp";
+        let result = parser.parse(url, 0);
+
+        assert!(result.is_ok());
+        let server = result.unwrap();
+        match server {
+            ServerConfig::Vless {
+                id, address, port, ..
+            } => {
+                assert_eq!(id, "c3077f1d-3b94-4a83-aecb-f4e9beb4dc7e");
+                assert_eq!(address, "2001:19f0:7400:8c45:5400:04ff:feef:4ccb");
+                assert_eq!(port, 2083);
+            }
+            _ => panic!("Expected Vless config"),
+        }
     }
 }

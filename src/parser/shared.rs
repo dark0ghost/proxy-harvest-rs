@@ -174,6 +174,18 @@ pub enum NetworkSettings {
         /// TCP header type (e.g., "none", "http").
         header_type: String,
     },
+    /// XHTTP transport settings (experimental).
+    #[serde(rename = "xhttp")]
+    XHttp {
+        /// XHTTP path for connection.
+        path: String,
+        /// Host header for XHTTP connection.
+        host: String,
+        /// XHTTP mode (auto, stream-up, etc.).
+        mode: String,
+        /// Extra JSON configuration.
+        extra: Option<String>,
+    },
 }
 
 impl ServerConfig {
@@ -351,6 +363,28 @@ pub fn parse_network_settings(
                 .unwrap_or_else(|| "none".to_string());
             Ok(Some(NetworkSettings::Tcp { header_type }))
         }
+        "xhttp" => {
+            let path = params
+                .get("path")
+                .map(|s| s.to_string())
+                .unwrap_or_else(|| "/".to_string());
+            let host = params
+                .get("host")
+                .or_else(|| params.get("sni"))
+                .map(|s| s.to_string())
+                .unwrap_or_default();
+            let mode = params
+                .get("mode")
+                .map(|s| s.to_string())
+                .unwrap_or_else(|| "auto".to_string());
+            let extra = params.get("extra").cloned();
+            Ok(Some(NetworkSettings::XHttp {
+                path,
+                host,
+                mode,
+                extra,
+            }))
+        }
         _ => Ok(None),
     }
 }
@@ -363,11 +397,24 @@ pub fn parse_network_settings(
 /// * `protocol` - The protocol name for fallback tag generation
 /// * `idx` - The index for fallback tag generation
 /// * `is_warp` - Whether this is a WARP server
+/// * `address` - Server address for uniqueness (optional)
+/// * `port` - Server port for uniqueness (optional)
 ///
 /// # Returns
 ///
-/// Returns a sanitized tag string.
-pub fn sanitize_tag(tag: &str, protocol: &str, idx: usize, is_warp: bool) -> String {
+/// Returns a sanitized tag string. If address and port are provided and the tag
+/// would otherwise be a duplicate, appends a short hash for uniqueness.
+pub fn sanitize_tag(
+    tag: &str,
+    protocol: &str,
+    idx: usize,
+    is_warp: bool,
+    address: Option<&str>,
+    port: Option<u16>,
+) -> String {
+    use std::collections::hash_map::DefaultHasher;
+    use std::hash::{Hash, Hasher};
+
     // Remove emojis and special characters, keep alphanumeric and common separators
     let cleaned: String = tag
         .chars()
@@ -376,7 +423,7 @@ pub fn sanitize_tag(tag: &str, protocol: &str, idx: usize, is_warp: bool) -> Str
 
     let cleaned = cleaned.trim();
 
-    let base_tag = if cleaned.is_empty() {
+    let mut base_tag = if cleaned.is_empty() {
         format!("{}-{}", protocol, idx)
     } else {
         cleaned.replace(' ', "-").to_lowercase()
@@ -384,10 +431,19 @@ pub fn sanitize_tag(tag: &str, protocol: &str, idx: usize, is_warp: bool) -> Str
 
     // If it's a WARP server and tag doesn't start with "warp", prepend it
     if is_warp && !base_tag.starts_with("warp") {
-        format!("warp-{}", base_tag)
-    } else {
-        base_tag
+        base_tag = format!("warp-{}", base_tag);
     }
+
+    // Add uniqueness suffix if address and port are provided
+    if let (Some(addr), Some(p)) = (address, port) {
+        let mut hasher = DefaultHasher::new();
+        format!("{}:{}:{}", protocol, addr, p).hash(&mut hasher);
+        let hash = hasher.finish();
+        let short_hash = format!("{:x}", hash)[..4].to_string();
+        base_tag = format!("{}-{}", base_tag, short_hash);
+    }
+
+    base_tag
 }
 
 /// Checks if a server should be classified as WARP.

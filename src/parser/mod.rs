@@ -266,7 +266,9 @@ pub fn parse_servers(content: &str) -> Result<Vec<ServerConfig>> {
 
     for (idx, line) in lines.iter().enumerate() {
         let line = line.trim();
-        if line.is_empty() {
+
+        // Skip empty lines and comments
+        if line.is_empty() || line.starts_with('#') {
             continue;
         }
 

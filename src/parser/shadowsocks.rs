@@ -59,7 +59,14 @@ impl UrlParser for ShadowsocksParser {
     }
 
     fn to_server_config(raw: ShadowsocksRaw, idx: usize) -> Result<ServerConfig> {
-        let clean_tag = sanitize_tag(&raw.tag, "ss", idx, false);
+        let clean_tag = sanitize_tag(
+            &raw.tag,
+            "ss",
+            idx,
+            false,
+            Some(&raw.address),
+            Some(raw.port),
+        );
 
         Ok(ServerConfig::Shadowsocks {
             tag: clean_tag,

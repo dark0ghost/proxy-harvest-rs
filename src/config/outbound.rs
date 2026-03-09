@@ -145,6 +145,26 @@ pub fn generate_outbounds(servers: &[ServerConfig]) -> Result<Value> {
                                 }
                             });
                         }
+                        NetworkSettings::XHttp {
+                            path,
+                            host,
+                            mode,
+                            extra,
+                        } => {
+                            let mut xhttp_settings = json!({
+                                "path": path,
+                                "host": host,
+                                "mode": mode
+                            });
+                            if let Some(e) = extra {
+                                if let Ok(extra_json) = serde_json::from_str::<Value>(e) {
+                                    xhttp_settings["extra"] = extra_json;
+                                } else {
+                                    xhttp_settings["extra"] = json!(e);
+                                }
+                            }
+                            stream_settings["xhttpSettings"] = xhttp_settings;
+                        }
                     }
                 }
 
@@ -231,6 +251,26 @@ pub fn generate_outbounds(servers: &[ServerConfig]) -> Result<Value> {
                                     "type": header_type
                                 }
                             });
+                        }
+                        NetworkSettings::XHttp {
+                            path,
+                            host,
+                            mode,
+                            extra,
+                        } => {
+                            let mut xhttp_settings = json!({
+                                "path": path,
+                                "host": host,
+                                "mode": mode
+                            });
+                            if let Some(e) = extra {
+                                if let Ok(extra_json) = serde_json::from_str::<Value>(e) {
+                                    xhttp_settings["extra"] = extra_json;
+                                } else {
+                                    xhttp_settings["extra"] = json!(e);
+                                }
+                            }
+                            stream_settings["xhttpSettings"] = xhttp_settings;
                         }
                     }
                 }
@@ -338,6 +378,26 @@ pub fn generate_outbounds(servers: &[ServerConfig]) -> Result<Value> {
                                     "type": header_type
                                 }
                             });
+                        }
+                        NetworkSettings::XHttp {
+                            path,
+                            host,
+                            mode,
+                            extra,
+                        } => {
+                            let mut xhttp_settings = json!({
+                                "path": path,
+                                "host": host,
+                                "mode": mode
+                            });
+                            if let Some(e) = extra {
+                                if let Ok(extra_json) = serde_json::from_str::<Value>(e) {
+                                    xhttp_settings["extra"] = extra_json;
+                                } else {
+                                    xhttp_settings["extra"] = json!(e);
+                                }
+                            }
+                            stream_settings["xhttpSettings"] = xhttp_settings;
                         }
                     }
                 }

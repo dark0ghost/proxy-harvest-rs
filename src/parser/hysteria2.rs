@@ -116,7 +116,14 @@ impl UrlParser for Hysteria2Parser {
     }
 
     fn to_server_config(raw: Hysteria2Raw, idx: usize) -> Result<ServerConfig> {
-        let clean_tag = sanitize_tag(&raw.tag, "hysteria2", idx, false);
+        let clean_tag = sanitize_tag(
+            &raw.tag,
+            "hysteria2",
+            idx,
+            false,
+            Some(&raw.address),
+            Some(raw.port),
+        );
 
         Ok(ServerConfig::Hysteria2 {
             tag: clean_tag,
@@ -155,7 +162,7 @@ mod tests {
                 assert_eq!(password, "password");
                 assert_eq!(address, "example.com");
                 assert_eq!(port, 443);
-                assert_eq!(tag, "test-hysteria2");
+                assert!(tag.starts_with("test-hysteria2"));
             }
             _ => panic!("Expected Hysteria2 config"),
         }
