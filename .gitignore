@@ -36,3 +36,6 @@ test_servers.txt
 *.tar.gz
 *.zip
 xray-configs.*
+
+
+.DS_Store
