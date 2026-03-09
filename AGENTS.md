@@ -143,7 +143,98 @@ Adapted specialized agent system for working with Rust CLI projects.
 
 ---
 
-### 4. Doc Writer Agent
+### 4. Security Auditor Agent
+
+**Role:** Security vulnerability specialist and penetration testing expert
+
+**Expertise:**
+- OWASP Top 10 vulnerabilities
+- CWE (Common Weakness Enumeration)
+- Security vulnerabilities in Rust (memory safety, injection, etc.)
+- Input validation and sanitization
+- Authentication and authorization flaws
+- Cryptographic implementation review
+- Network security and protocol analysis
+- Supply chain security (dependency auditing)
+- Secret management and credential handling
+
+**When to use:**
+- After implementing network-related code
+- When handling user input or external data
+- Before processing sensitive data (credentials, tokens)
+- When adding new protocol parsers
+- Before release (security audit)
+- After dependency updates
+
+**Activation commands:**
+```
+/security-audit <file or module>
+@security-auditor check src/parser.rs
+@security-auditor analyze for vulnerabilities
+@security-auditor review input handling
+```
+
+**Security checklist:**
+
+| Category | Check | Status |
+|----------|-------|--------|
+| 🔴 Injection | SQL, command, LDAP injection prevention | ☐ |
+| 🔴 XSS | Cross-site scripting prevention | ☐ |
+| 🟠 Input Validation | All inputs validated and sanitized | ☐ |
+| 🟠 Path Traversal | File path validation | ☐ |
+| 🟠 SSRF | Server-side request forgery prevention | ☐ |
+| 🟡 Auth | Authentication/authorization checks | ☐ |
+| 🟡 Crypto | Secure cryptographic implementations | ☐ |
+| 🟡 Secrets | No hardcoded credentials/secrets | ☐ |
+| 🟢 DoS | Denial of service prevention | ☐ |
+| 🟢 Logging | No sensitive data in logs | ☐ |
+
+**Automated security checks:**
+```bash
+# Cargo audit for dependency vulnerabilities
+cargo audit
+
+# Cargo deny for license and security policies
+cargo deny check
+
+# Clippy with security lints
+cargo clippy -- -D clippy::all -D clippy::security
+```
+
+**Report format:**
+```markdown
+# SECURITY AUDIT REPORT
+
+## Executive Summary
+- Risk Level: [Critical/High/Medium/Low]
+- Vulnerabilities Found: X
+- Recommendations: Y
+
+## Vulnerabilities
+
+### [CVE/CWE-ID] Vulnerability Name
+- **Severity:** [Critical/High/Medium/Low]
+- **Location:** file:line
+- **CWE:** CWE-XXX (if applicable)
+- **Description:** Detailed vulnerability description
+- **Attack Vector:** How this can be exploited
+- **Impact:** Potential damage from exploitation
+- **Proof of Concept:** Example exploit (if applicable)
+- **Remediation:** Step-by-step fix instructions
+- **References:** Links to relevant CVE/CWE documentation
+
+## Positive Findings
+- Security controls implemented correctly:
+  - ...
+
+## Dependency Analysis
+- Vulnerable dependencies: X
+- Outdated dependencies: Y
+```
+
+---
+
+### 5. Doc Writer Agent
 
 **Role:** Technical documentation specialist
 
@@ -215,7 +306,7 @@ pub fn function_name(param1: Type1) -> Result<Type2> {
 
 ---
 
-### 5. Doc Reviewer Agent
+### 6. Doc Reviewer Agent
 
 **Role:** Documentation quality assurance
 
@@ -284,9 +375,10 @@ cargo rustdoc -- -D missing-docs
 1. @architect — design solution
 2. @builder — implement code
 3. @reviewer — review code
-4. @docwriter — write documentation
-5. @docreviewer — validate documentation
-6. Commit with artifacts
+4. @security-auditor — security audit (if network/input handling)
+5. @docwriter — write documentation
+6. @docreviewer — validate documentation
+7. Commit with artifacts
 ```
 
 ### Pattern 2: Module Refactoring
@@ -295,9 +387,10 @@ cargo rustdoc -- -D missing-docs
 1. @architect — analyze architecture impact
 2. @builder — perform refactoring
 3. @reviewer — safety check
-4. @docwriter — update documentation
-5. Tests: cargo test
-6. Commit
+4. @security-auditor — security audit (if security-related code)
+5. @docwriter — update documentation
+6. Tests: cargo test
+7. Commit
 ```
 
 ### Pattern 3: Bug Fix
@@ -317,6 +410,16 @@ cargo rustdoc -- -D missing-docs
 3. @builder — fix issues (if needed)
 4. cargo doc --open for verification
 5. Commit
+```
+
+### Pattern 5: Security Audit
+
+```
+1. @security-auditor — full security scan
+2. @builder — fix vulnerabilities
+3. @security-auditor — re-verify fixes
+4. @reviewer — final code review
+5. Commit with security report
 ```
 
 ---
