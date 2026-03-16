@@ -30,6 +30,7 @@ pub fn generate_outbounds(servers: &[ServerConfig]) -> Result<Value> {
                 port,
                 method,
                 password,
+                ..
             } => {
                 json!({
                     "tag": tag,
@@ -415,6 +416,7 @@ pub fn generate_outbounds(servers: &[ServerConfig]) -> Result<Value> {
                 sni,
                 insecure,
                 pinned_sha256,
+                ..
             } => {
                 let mut settings = json!({
                     "servers": [
@@ -456,6 +458,123 @@ pub fn generate_outbounds(servers: &[ServerConfig]) -> Result<Value> {
                     "settings": settings
                 })
             }
+            ServerConfig::WireGuard {
+                tag,
+                address,
+                port,
+                secret_key: _,
+                public_key,
+                pre_shared_key,
+                local_address,
+                reserved,
+                mtu,
+            } => {
+                // WireGuard outbound for Xray
+                let mut peer_settings = json!({
+                    "publicKey": public_key,
+                    "endpoint": format!("{}:{}", address, port)
+                });
+
+                if let Some(ref psk) = pre_shared_key {
+                    peer_settings["preSharedKey"] = json!(psk);
+                }
+
+                let mut settings = json!({
+                    "secretKey": local_address,
+                    "address": [local_address],
+                    "peers": [peer_settings],
+                    "mtu": mtu
+                });
+
+                if let Some(ref r) = reserved {
+                    let reserved_vec: Vec<String> =
+                        r.split(',').map(|s| s.trim().to_string()).collect();
+                    settings["reserved"] = json!(reserved_vec);
+                }
+
+                json!({
+                    "tag": tag,
+                    "protocol": "wireguard",
+                    "settings": settings
+                })
+            }
+            ServerConfig::Socks {
+                tag,
+                address,
+                port,
+                username,
+                password,
+                version,
+            } => {
+                let mut users = Vec::new();
+                if let (Some(u), Some(p)) = (username, password) {
+                    users.push(json!({
+                        "user": u,
+                        "pass": p
+                    }));
+                }
+
+                let mut settings = json!({
+                    "servers": [
+                        {
+                            "address": address,
+                            "port": port,
+                            "users": users
+                        }
+                    ]
+                });
+
+                if version == "4" || version == "4a" {
+                    settings["servers"][0]["uot"] = json!(false);
+                }
+
+                json!({
+                    "tag": tag,
+                    "protocol": "socks",
+                    "settings": settings
+                })
+            }
+            ServerConfig::Http {
+                tag,
+                address,
+                port,
+                username,
+                password,
+                tls,
+            } => {
+                let mut settings = json!({
+                    "servers": [
+                        {
+                            "address": address,
+                            "port": port
+                        }
+                    ]
+                });
+
+                if let (Some(u), Some(p)) = (username, password) {
+                    settings["servers"][0]["users"] = json!([
+                        {
+                            "user": u,
+                            "pass": p
+                        }
+                    ]);
+                }
+
+                let mut outbound = json!({
+                    "tag": tag,
+                    "protocol": "http",
+                    "settings": settings
+                });
+
+                if *tls {
+                    outbound["streamSettings"] = json!({
+                        "network": "tcp",
+                        "security": "tls"
+                    });
+                }
+
+                outbound
+            }
         };
 
         outbounds.push(outbound);
@@ -495,6 +614,8 @@ mod tests {
             port: 8388,
             method: "aes-256-gcm".to_string(),
             password: "test-password".to_string(),
+            plugin: None,
+            plugin_opts: None,
         }];
 
         let result = generate_outbounds(&servers);

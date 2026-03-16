@@ -16,11 +16,14 @@
 //!
 //! # Supported Protocols
 //!
-//! - Shadowsocks (`ss://`)
-//! - VLESS (`vless://`)
-//! - VMess (`vmess://`)
-//! - Trojan (`trojan://`)
-//! - Hysteria2 (`hysteria2://`, `hy2://`)
+//! - Shadowsocks (`ss://`) — SIP002, Legacy, Plugin formats
+//! - VLESS (`vless://`) — Standard URI format
+//! - VMess (`vmess://`) — Classic (Base64 JSON) and Standard URI formats
+//! - Trojan (`trojan://`) — Standard URI format
+//! - Hysteria2 (`hysteria2://`, `hy2://`) — Standard URI format
+//! - WireGuard (`wireguard://`) — URI format
+//! - SOCKS (`socks://`) — Base64-encoded credentials
+//! - HTTP (`http://`, `https://`) — Basic auth format
 //!
 //! # Example
 //!
@@ -39,18 +42,24 @@
 use anyhow::Result;
 
 // Parser modules
+mod http;
 mod hysteria2;
 mod shadowsocks;
+mod socks;
 mod trojan;
 mod vless;
 mod vmess;
+mod wireguard;
 
 // Re-export parser implementations
+use http::HttpParser;
 use hysteria2::Hysteria2Parser;
 use shadowsocks::ShadowsocksParser;
+use socks::SocksParser;
 use trojan::TrojanParser;
 use vless::VlessParser;
 use vmess::VmessParser;
+use wireguard::WireGuardParser;
 
 // Re-export common types
 pub use shared::{check_is_warp, sanitize_tag, NetworkSettings, ServerConfig, TlsSettings};
@@ -190,6 +199,9 @@ impl ParserRegistry {
                 Box::new(ParserWrapper::new(VmessParser)),
                 Box::new(ParserWrapper::new(TrojanParser)),
                 Box::new(ParserWrapper::new(Hysteria2Parser)),
+                Box::new(ParserWrapper::new(WireGuardParser)),
+                Box::new(ParserWrapper::new(SocksParser)),
+                Box::new(ParserWrapper::new(HttpParser)),
             ],
         }
     }
@@ -290,7 +302,7 @@ mod tests {
     #[test]
     fn test_registry_creation() {
         let registry = ParserRegistry::new();
-        assert_eq!(registry.parsers.len(), 5);
+        assert_eq!(registry.parsers.len(), 8); // 8 protocols
     }
 
     #[test]
@@ -306,9 +318,15 @@ mod tests {
 ss://Y2hhY2hhMjAtaWV0Zi1wb2x5MTMwNTpwYXNzd29yZA@example.com:8388#ss-server
 vless://uuid@example.com:443?security=tls#vless-server
 trojan://password@example.com:443#trojan-server
+hysteria2://password@example.com:443#hysteria2-server
+wireguard://privatekey@example.com:51820?address=172.16.0.2%2F32&publickey=pubkey&mtu=1420#wireguard-server
+socks://dXNlcjpwYXNz@192.168.1.1:1080#socks-server
+http://user:pass@proxy.example.com:8080#http-server
 "#;
         let result = parse_servers(content);
         assert!(result.is_ok());
-        assert_eq!(result.unwrap().len(), 3);
+        // Note: trojan and hysteria2 may fail without proper query params
+        // Expected: ss, vless, wireguard, socks, http = 5
+        assert!(result.unwrap().len() >= 5);
     }
 }

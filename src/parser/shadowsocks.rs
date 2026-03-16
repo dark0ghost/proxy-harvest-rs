@@ -5,7 +5,9 @@
 use anyhow::{Context, Result};
 use regex::Regex;
 
-use crate::parser::shared::{decode_base64_flexible, decode_tag, sanitize_tag, ServerConfig};
+use crate::parser::shared::{
+    decode_base64_flexible, decode_tag, parse_query, sanitize_tag, ServerConfig,
+};
 use crate::parser::UrlParser;
 
 /// Raw Shadowsocks data parsed from URL.
@@ -15,6 +17,8 @@ pub struct ShadowsocksRaw {
     pub address: String,
     pub port: u16,
     pub tag: String,
+    pub plugin: Option<String>,
+    pub plugin_opts: Option<String>,
 }
 
 /// Shadowsocks protocol parser.
@@ -38,6 +42,7 @@ impl UrlParser for ShadowsocksParser {
         let tag = decode_tag(caps.get(5).map(|m| m.as_str()).unwrap_or(""), || {
             format!("ss-{}", idx)
         });
+        let query = caps.get(4).map(|m| m.as_str()).unwrap_or("");
 
         // Decode base64 credentials
         let decoded = decode_base64_flexible(encoded)?;
@@ -49,12 +54,30 @@ impl UrlParser for ShadowsocksParser {
             anyhow::bail!("Invalid shadowsocks credentials format");
         }
 
+        // Parse plugin from query parameters
+        let mut plugin = None;
+        let mut plugin_opts = None;
+
+        if !query.is_empty() {
+            let params = parse_query(query)?;
+            if let Some(p) = params.get("plugin") {
+                // Plugin format: obfs-local;obfs=http;obfs-host=example.com
+                let plugin_parts: Vec<&str> = p.split(';').collect();
+                plugin = Some(plugin_parts[0].to_string());
+                if plugin_parts.len() > 1 {
+                    plugin_opts = Some(p.to_string());
+                }
+            }
+        }
+
         Ok(ShadowsocksRaw {
             method: parts[0].to_string(),
             password: parts[1].to_string(),
             address: host,
             port,
             tag,
+            plugin,
+            plugin_opts,
         })
     }
 
@@ -74,6 +97,8 @@ impl UrlParser for ShadowsocksParser {
             port: raw.port,
             method: raw.method,
             password: raw.password,
+            plugin: raw.plugin,
+            plugin_opts: raw.plugin_opts,
         })
     }
 }

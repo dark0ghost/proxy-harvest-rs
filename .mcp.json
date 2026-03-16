@@ -1,0 +1,15 @@
+{
+  "mcpServers": {
+    "context7": {
+      "type": "stdio",
+      "command": "npx -y @upstash/context7-mcp --api-key $CONTEXT7_API_KEY",
+      "env": {
+        "CONTEXT7_API_KEY": "$CONTEXT7_API_KEY"
+      }
+    }
+  },
+  "jetbrains": {
+    "type": "sse",
+    "url": "http://localhost:64342/sse"
+  }
+}

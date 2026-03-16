@@ -13,6 +13,9 @@ pub fn check_server_availability(server: &ServerConfig, timeout_secs: u64) -> bo
         ServerConfig::Vmess { address, port, .. } => (address, *port),
         ServerConfig::Trojan { address, port, .. } => (address, *port),
         ServerConfig::Hysteria2 { address, port, .. } => (address, *port),
+        ServerConfig::WireGuard { address, port, .. } => (address, *port),
+        ServerConfig::Socks { address, port, .. } => (address, *port),
+        ServerConfig::Http { address, port, .. } => (address, *port),
     };
 
     let target = format!("{}:{}", address, port);
@@ -86,6 +89,8 @@ mod tests {
             port: 9999,
             method: "aes-256-gcm".to_string(),
             password: "test".to_string(),
+            plugin: None,
+            plugin_opts: None,
         };
 
         let result = check_server_availability(&server, 1);

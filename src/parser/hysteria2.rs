@@ -19,6 +19,10 @@ pub struct Hysteria2Raw {
     pub insecure: bool,
     pub pinned_sha256: Option<String>,
     pub tag: String,
+    pub port_hopping: Option<String>,
+    pub port_hopping_interval: Option<String>,
+    pub bandwidth_down: Option<String>,
+    pub bandwidth_up: Option<String>,
 }
 
 /// Hysteria2 protocol parser.
@@ -101,6 +105,10 @@ impl UrlParser for Hysteria2Parser {
             .map(|s| s == "1" || s == "true")
             .unwrap_or(false);
         let pinned_sha256 = params.get("pinSHA256").map(|s| s.to_string());
+        let port_hopping = params.get("mport").map(|s| s.to_string());
+        let port_hopping_interval = params.get("mportHopInt").map(|s| s.to_string());
+        let bandwidth_down = params.get("bandwidthDown").map(|s| s.to_string());
+        let bandwidth_up = params.get("bandwidthUp").map(|s| s.to_string());
 
         Ok(Hysteria2Raw {
             password,
@@ -112,6 +120,10 @@ impl UrlParser for Hysteria2Parser {
             insecure,
             pinned_sha256,
             tag,
+            port_hopping,
+            port_hopping_interval,
+            bandwidth_down,
+            bandwidth_up,
         })
     }
 
@@ -135,6 +147,10 @@ impl UrlParser for Hysteria2Parser {
             sni: raw.sni,
             insecure: raw.insecure,
             pinned_sha256: raw.pinned_sha256,
+            port_hopping: raw.port_hopping,
+            port_hopping_interval: raw.port_hopping_interval,
+            bandwidth_down: raw.bandwidth_down,
+            bandwidth_up: raw.bandwidth_up,
         })
     }
 }

@@ -1,10 +1,28 @@
 //! Shared types and utilities for parser modules.
 //!
 //! This module contains the common data structures used across all protocol parsers.
+//!
+//! # Architecture
+//!
+//! The parsing system is built around the [`ServerConfig`] enum, which represents
+//! a unified configuration object for all supported proxy protocols. Each protocol
+//! has its own variant with protocol-specific fields.
+//!
+//! ## Supported Protocols
+//!
+//! - Shadowsocks (`ss://`) — SIP002, Legacy, Plugin formats
+//! - VLESS (`vless://`) — Standard URI format
+//! - VMess (`vmess://`) — Classic (Base64 JSON) и Standard URI formats
+//! - Trojan (`trojan://`) — Standard URI format
+//! - Hysteria2 (`hysteria2://`, `hy2://`) — Standard URI format
+//! - WireGuard (`wireguard://`) — URI format
+//! - SOCKS (`socks://`) — Base64-encoded credentials
+//! - HTTP (`http://`, `https://`) — Basic auth format
 
 use anyhow::{Context, Result};
 use base64::prelude::*;
 use serde::{Deserialize, Serialize};
+use serde_json::json;
 use std::collections::HashMap;
 use urlencoding::decode;
 
@@ -12,10 +30,28 @@ use urlencoding::decode;
 ///
 /// Represents a parsed VPN server configuration ready for Xray outbound generation.
 /// Each variant corresponds to a specific VPN protocol.
+///
+/// # Examples
+///
+/// ```rust
+/// use proxy_harvest_rs::parser::{ServerConfig, NetworkSettings, TlsSettings};
+///
+/// let config = ServerConfig::Shadowsocks {
+///     tag: "test-ss".to_string(),
+///     address: "example.com".to_string(),
+///     port: 8388,
+///     method: "aes-256-gcm".to_string(),
+///     password: "password".to_string(),
+///     plugin: None,
+///     plugin_opts: None,
+/// };
+/// ```
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "protocol")]
 pub enum ServerConfig {
     /// Shadowsocks server configuration.
+    ///
+    /// Supports SIP002, Legacy, and Plugin formats.
     #[serde(rename = "shadowsocks")]
     Shadowsocks {
         /// Server tag/label for identification.
@@ -24,12 +60,18 @@ pub enum ServerConfig {
         address: String,
         /// Server port number.
         port: u16,
-        /// Encryption method (e.g., "aes-256-gcm", "chacha20-ietf-poly1305").
+        /// Encryption method (e.g., "aes-256-gcm", "chacha20-ietf-poly1305", "none").
         method: String,
         /// Password for authentication.
         password: String,
+        /// Optional plugin configuration (e.g., "obfs-local").
+        plugin: Option<String>,
+        /// Optional plugin options.
+        plugin_opts: Option<String>,
     },
     /// VLESS server configuration.
+    ///
+    /// Supports standard URI format with TLS, Reality, and various transports.
     #[serde(rename = "vless")]
     Vless {
         /// Server tag/label for identification.
@@ -42,18 +84,20 @@ pub enum ServerConfig {
         id: String,
         /// Encryption type (e.g., "none", "auto").
         encryption: String,
-        /// Traffic flow for XTLS (e.g., "xtls-rprx-vision").
+        /// Traffic flow for XTLS (e.g., "xtls-rprx-vision", "xtls-rprx-vision-udp443").
         flow: String,
-        /// Network transport type (e.g., "tcp", "ws", "grpc").
+        /// Network transport type (e.g., "tcp", "ws", "grpc", "kcp", "xhttp").
         network: String,
         /// Security layer (e.g., "none", "tls", "reality").
         security: String,
         /// TLS/Reality settings if security is enabled.
         tls_settings: Option<Box<TlsSettings>>,
-        /// Network-specific settings (WebSocket, gRPC, TCP).
+        /// Network-specific settings (WebSocket, gRPC, TCP, XHTTP).
         network_settings: Option<NetworkSettings>,
     },
     /// VMess server configuration.
+    ///
+    /// Supports both Classic (Base64-encoded JSON) and Standard URI formats.
     #[serde(rename = "vmess")]
     Vmess {
         /// Server tag/label for identification.
@@ -66,9 +110,9 @@ pub enum ServerConfig {
         id: String,
         /// AlterID for VMess protocol compatibility.
         alter_id: u16,
-        /// Security method (e.g., "auto", "aes-128-gcm").
+        /// Security method (e.g., "auto", "aes-128-gcm", "none", "zero").
         security: String,
-        /// Network transport type (e.g., "tcp", "ws", "grpc").
+        /// Network transport type (e.g., "tcp", "ws", "grpc", "kcp", "http", "quic").
         network: String,
         /// TLS mode (empty string or "tls").
         tls: String,
@@ -78,6 +122,8 @@ pub enum ServerConfig {
         network_settings: Option<NetworkSettings>,
     },
     /// Trojan server configuration.
+    ///
+    /// Supports standard URI format with TLS/Reality and various transports.
     #[serde(rename = "trojan")]
     Trojan {
         /// Server tag/label for identification.
@@ -90,7 +136,7 @@ pub enum ServerConfig {
         password: String,
         /// Network transport type (e.g., "tcp", "ws", "grpc").
         network: String,
-        /// Security layer (e.g., "tls", "reality").
+        /// Security layer (e.g., "tls", "reality", "none").
         security: String,
         /// Server Name Indication for TLS.
         sni: Option<String>,
@@ -100,6 +146,8 @@ pub enum ServerConfig {
         network_settings: Option<NetworkSettings>,
     },
     /// Hysteria2 server configuration.
+    ///
+    /// Supports standard URI format with obfuscation and TLS settings.
     #[serde(rename = "hysteria2")]
     Hysteria2 {
         /// Server tag/label for identification.
@@ -118,8 +166,76 @@ pub enum ServerConfig {
         sni: Option<String>,
         /// Allow insecure TLS connections.
         insecure: bool,
-        /// Certificate pinning hash.
+        /// Certificate pinning hash (SHA256).
         pinned_sha256: Option<String>,
+        /// Port hopping specification (e.g., "443,80,8000-9000").
+        port_hopping: Option<String>,
+        /// Port hopping interval in seconds.
+        port_hopping_interval: Option<String>,
+        /// Download bandwidth limit.
+        bandwidth_down: Option<String>,
+        /// Upload bandwidth limit.
+        bandwidth_up: Option<String>,
+    },
+    /// WireGuard server configuration.
+    ///
+    /// Supports URI format with all WireGuard-specific parameters.
+    #[serde(rename = "wireguard")]
+    WireGuard {
+        /// Server tag/label for identification.
+        tag: String,
+        /// Server hostname or IP address.
+        address: String,
+        /// Server port number.
+        port: u16,
+        /// Private key (base64-encoded).
+        secret_key: String,
+        /// Server public key (base64-encoded).
+        public_key: String,
+        /// Optional preshared key (base64-encoded).
+        pre_shared_key: Option<String>,
+        /// Client IP address in CIDR notation (e.g., "172.16.0.2/32").
+        local_address: String,
+        /// Reserved bytes as comma-separated values (e.g., "0,0,0").
+        reserved: Option<String>,
+        /// Maximum Transmission Unit.
+        mtu: u16,
+    },
+    /// SOCKS proxy server configuration.
+    ///
+    /// Supports base64-encoded credentials format.
+    #[serde(rename = "socks")]
+    Socks {
+        /// Server tag/label for identification.
+        tag: String,
+        /// Server hostname or IP address.
+        address: String,
+        /// Server port number.
+        port: u16,
+        /// Optional username for authentication.
+        username: Option<String>,
+        /// Optional password for authentication.
+        password: Option<String>,
+        /// SOCKS version ("4", "4a", "5").
+        version: String,
+    },
+    /// HTTP/HTTPS proxy server configuration.
+    ///
+    /// Supports basic auth format.
+    #[serde(rename = "http")]
+    Http {
+        /// Server tag/label for identification.
+        tag: String,
+        /// Server hostname or IP address.
+        address: String,
+        /// Server port number.
+        port: u16,
+        /// Optional username for authentication.
+        username: Option<String>,
+        /// Optional password for authentication.
+        password: Option<String>,
+        /// TLS enabled (true for https://).
+        tls: bool,
     },
 }
 
@@ -194,6 +310,23 @@ impl ServerConfig {
     /// # Returns
     ///
     /// A string slice containing the server's tag used for identification.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use proxy_harvest_rs::parser::ServerConfig;
+    ///
+    /// let config = ServerConfig::Shadowsocks {
+    ///     tag: "test-ss".to_string(),
+    ///     address: "example.com".to_string(),
+    ///     port: 8388,
+    ///     method: "aes-256-gcm".to_string(),
+    ///     password: "password".to_string(),
+    ///     plugin: None,
+    ///     plugin_opts: None,
+    /// };
+    /// assert_eq!(config.tag(), "test-ss");
+    /// ```
     pub fn tag(&self) -> &str {
         match self {
             ServerConfig::Shadowsocks { tag, .. } => tag,
@@ -201,6 +334,45 @@ impl ServerConfig {
             ServerConfig::Vmess { tag, .. } => tag,
             ServerConfig::Trojan { tag, .. } => tag,
             ServerConfig::Hysteria2 { tag, .. } => tag,
+            ServerConfig::WireGuard { tag, .. } => tag,
+            ServerConfig::Socks { tag, .. } => tag,
+            ServerConfig::Http { tag, .. } => tag,
+        }
+    }
+
+    /// Returns the server address.
+    ///
+    /// # Returns
+    ///
+    /// A string slice containing the server's hostname or IP address.
+    pub fn address(&self) -> &str {
+        match self {
+            ServerConfig::Shadowsocks { address, .. } => address,
+            ServerConfig::Vless { address, .. } => address,
+            ServerConfig::Vmess { address, .. } => address,
+            ServerConfig::Trojan { address, .. } => address,
+            ServerConfig::Hysteria2 { address, .. } => address,
+            ServerConfig::WireGuard { address, .. } => address,
+            ServerConfig::Socks { address, .. } => address,
+            ServerConfig::Http { address, .. } => address,
+        }
+    }
+
+    /// Returns the server port.
+    ///
+    /// # Returns
+    ///
+    /// The server's port number.
+    pub fn port(&self) -> u16 {
+        match self {
+            ServerConfig::Shadowsocks { port, .. } => *port,
+            ServerConfig::Vless { port, .. } => *port,
+            ServerConfig::Vmess { port, .. } => *port,
+            ServerConfig::Trojan { port, .. } => *port,
+            ServerConfig::Hysteria2 { port, .. } => *port,
+            ServerConfig::WireGuard { port, .. } => *port,
+            ServerConfig::Socks { port, .. } => *port,
+            ServerConfig::Http { port, .. } => *port,
         }
     }
 
@@ -221,14 +393,431 @@ impl ServerConfig {
     ///
     /// `true` if the server appears to be a Cloudflare server, `false` otherwise.
     pub fn is_cloudflare(&self) -> bool {
+        let addr = self.address().to_lowercase();
+        addr.starts_with("104.") || addr.contains("cloudflare") || addr.contains("cdn")
+    }
+
+    /// Generates a URI string from this configuration.
+    ///
+    /// # Returns
+    ///
+    /// Returns a URI string representing this server configuration.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use proxy_harvest_rs::parser::ServerConfig;
+    ///
+    /// let config = ServerConfig::Shadowsocks {
+    ///     tag: "test-ss".to_string(),
+    ///     address: "example.com".to_string(),
+    ///     port: 8388,
+    ///     method: "aes-256-gcm".to_string(),
+    ///     password: "password".to_string(),
+    ///     plugin: None,
+    ///     plugin_opts: None,
+    /// };
+    /// let uri = config.to_uri();
+    /// assert!(uri.starts_with("ss://"));
+    /// ```
+    pub fn to_uri(&self) -> String {
         match self {
-            ServerConfig::Vless { address, .. }
-            | ServerConfig::Vmess { address, .. }
-            | ServerConfig::Trojan { address, .. } => {
-                let addr = address.to_lowercase();
-                addr.starts_with("104.") || addr.contains("cloudflare") || addr.contains("cdn")
+            ServerConfig::Shadowsocks {
+                tag,
+                address,
+                port,
+                method,
+                password,
+                plugin,
+                plugin_opts,
+            } => {
+                // Format: ss://base64(method:password)@host:port#tag
+                let credentials = format!("{}:{}", method, password);
+                let encoded = BASE64_STANDARD.encode(credentials);
+                let mut uri = format!("ss://{}@{}:{}", encoded, address, port);
+
+                if let Some(p) = plugin {
+                    uri.push_str("?plugin=");
+                    uri.push_str(&urlencoding::encode(p));
+                    if let Some(opts) = plugin_opts {
+                        uri.push_str("%3B");
+                        uri.push_str(&urlencoding::encode(opts));
+                    }
+                }
+
+                if !tag.is_empty() {
+                    uri.push('#');
+                    uri.push_str(&urlencoding::encode(tag));
+                }
+                uri
             }
-            _ => false,
+            ServerConfig::Vless {
+                tag,
+                address,
+                port,
+                id,
+                encryption,
+                flow,
+                network,
+                security,
+                tls_settings,
+                network_settings,
+            } => {
+                // Format: vless://uuid@host:port?params#tag
+                let mut params = Vec::new();
+                params.push(format!("encryption={}", encryption));
+
+                if !flow.is_empty() {
+                    params.push(format!("flow={}", flow));
+                }
+
+                params.push(format!("security={}", security));
+
+                if let Some(tls) = tls_settings {
+                    if !tls.server_name.is_empty() {
+                        params.push(format!("sni={}", tls.server_name));
+                    }
+                    if !tls.fingerprint.is_empty() && tls.fingerprint != "chrome" {
+                        params.push(format!("fp={}", tls.fingerprint));
+                    }
+                    if let Some(ref alpn) = tls.alpn {
+                        params.push(format!("alpn={}", alpn.join(",")));
+                    }
+                    if security == "reality" {
+                        if let Some(ref pk) = tls.public_key {
+                            params.push(format!("pbk={}", pk));
+                        }
+                        if let Some(ref sid) = tls.short_id {
+                            params.push(format!("sid={}", sid));
+                        }
+                        if let Some(ref spx) = tls.spider_x {
+                            params.push(format!("spx={}", urlencoding::encode(spx)));
+                        }
+                    }
+                }
+
+                params.push(format!("type={}", network));
+
+                if let Some(net) = network_settings {
+                    match net {
+                        NetworkSettings::WebSocket { path, host } => {
+                            if !host.is_empty() {
+                                params.push(format!("host={}", host));
+                            }
+                            params.push(format!("path={}", urlencoding::encode(path)));
+                        }
+                        NetworkSettings::Grpc {
+                            service_name,
+                            authority,
+                        } => {
+                            if !service_name.is_empty() {
+                                params.push(format!("serviceName={}", service_name));
+                            }
+                            if !authority.is_empty() {
+                                params.push(format!("authority={}", authority));
+                            }
+                        }
+                        NetworkSettings::Tcp { header_type } => {
+                            if header_type != "none" {
+                                params.push(format!("headerType={}", header_type));
+                            }
+                        }
+                        NetworkSettings::XHttp {
+                            path,
+                            host,
+                            mode,
+                            extra,
+                        } => {
+                            if !host.is_empty() {
+                                params.push(format!("host={}", host));
+                            }
+                            params.push(format!("path={}", urlencoding::encode(path)));
+                            if mode != "auto" {
+                                params.push(format!("mode={}", mode));
+                            }
+                            if let Some(e) = extra {
+                                params.push(format!("extra={}", urlencoding::encode(e)));
+                            }
+                        }
+                    }
+                }
+
+                let query = params.join("&");
+                let mut uri = format!("vless://{}@{}:{}?{}", id, address, port, query);
+
+                if !tag.is_empty() {
+                    uri.push('#');
+                    uri.push_str(&urlencoding::encode(tag));
+                }
+                uri
+            }
+            ServerConfig::Vmess {
+                tag,
+                address,
+                port,
+                id,
+                alter_id,
+                security,
+                network,
+                tls,
+                tls_settings,
+                network_settings,
+            } => {
+                // Use Classic Base64 JSON format for compatibility
+                let mut json_obj = serde_json::Map::new();
+                json_obj.insert("v".to_string(), json!("2"));
+                json_obj.insert("ps".to_string(), json!(tag));
+                json_obj.insert("add".to_string(), json!(address));
+                json_obj.insert("port".to_string(), json!(port.to_string()));
+                json_obj.insert("id".to_string(), json!(id));
+                json_obj.insert("aid".to_string(), json!(alter_id.to_string()));
+                json_obj.insert("scy".to_string(), json!(security));
+                json_obj.insert("net".to_string(), json!(network));
+
+                if let Some(net) = network_settings {
+                    match net {
+                        NetworkSettings::WebSocket { path, host } => {
+                            json_obj.insert("path".to_string(), json!(path));
+                            json_obj.insert("host".to_string(), json!(host));
+                        }
+                        NetworkSettings::Grpc {
+                            service_name,
+                            authority,
+                        } => {
+                            json_obj.insert("path".to_string(), json!(service_name));
+                            json_obj.insert("host".to_string(), json!(authority));
+                        }
+                        NetworkSettings::Tcp { header_type } => {
+                            json_obj.insert("type".to_string(), json!(header_type));
+                        }
+                        _ => {}
+                    }
+                }
+
+                if !tls.is_empty() {
+                    json_obj.insert("tls".to_string(), json!(tls));
+                    if let Some(tls_cfg) = tls_settings {
+                        json_obj.insert("sni".to_string(), json!(&tls_cfg.server_name));
+                        if let Some(ref alpn) = tls_cfg.alpn {
+                            json_obj.insert("alpn".to_string(), json!(alpn.join(",")));
+                        }
+                    }
+                }
+
+                let json_str = serde_json::to_string(&json_obj).unwrap_or_default();
+                let encoded = BASE64_STANDARD.encode(json_str);
+                format!("vmess://{}", encoded)
+            }
+            ServerConfig::Trojan {
+                tag,
+                address,
+                port,
+                password,
+                network,
+                security,
+                sni,
+                tls_settings: _,
+                network_settings,
+            } => {
+                // Format: trojan://password@host:port?params#tag
+                let mut params = Vec::new();
+                params.push(format!("security={}", security));
+
+                if let Some(ref s) = sni {
+                    params.push(format!("sni={}", s));
+                }
+
+                params.push(format!("type={}", network));
+
+                if let Some(net) = network_settings {
+                    match net {
+                        NetworkSettings::WebSocket { path, host } => {
+                            if !host.is_empty() {
+                                params.push(format!("host={}", host));
+                            }
+                            params.push(format!("path={}", urlencoding::encode(path)));
+                        }
+                        NetworkSettings::Grpc {
+                            service_name,
+                            authority: _,
+                        } => {
+                            if !service_name.is_empty() {
+                                params.push(format!("serviceName={}", service_name));
+                            }
+                        }
+                        NetworkSettings::Tcp { header_type } => {
+                            if header_type != "none" {
+                                params.push(format!("headerType={}", header_type));
+                            }
+                        }
+                        _ => {}
+                    }
+                }
+
+                let query = params.join("&");
+                let mut uri = format!("trojan://{}@{}:{}?{}", password, address, port, query);
+
+                if !tag.is_empty() {
+                    uri.push('#');
+                    uri.push_str(&urlencoding::encode(tag));
+                }
+                uri
+            }
+            ServerConfig::Hysteria2 {
+                tag,
+                address,
+                port,
+                password,
+                obfs,
+                obfs_password,
+                sni,
+                insecure,
+                pinned_sha256,
+                port_hopping,
+                port_hopping_interval: _,
+                bandwidth_down,
+                bandwidth_up,
+            } => {
+                // Format: hysteria2://password@host:port?params#tag
+                let mut params = Vec::new();
+
+                if let Some(ref o) = obfs {
+                    params.push(format!("obfs={}", o));
+                    if let Some(ref op) = obfs_password {
+                        params.push(format!("obfs-password={}", op));
+                    }
+                }
+
+                if let Some(ref s) = sni {
+                    params.push(format!("sni={}", s));
+                }
+
+                if *insecure {
+                    params.push("insecure=1".to_string());
+                }
+
+                if let Some(ref p) = pinned_sha256 {
+                    params.push(format!("pinSHA256={}", p));
+                }
+
+                if let Some(ref ph) = port_hopping {
+                    params.push(format!("mport={}", ph));
+                }
+
+                if let Some(ref bd) = bandwidth_down {
+                    params.push(format!("bandwidthDown={}", bd));
+                }
+
+                if let Some(ref bu) = bandwidth_up {
+                    params.push(format!("bandwidthUp={}", bu));
+                }
+
+                let query = if params.is_empty() {
+                    String::new()
+                } else {
+                    format!("?{}", params.join("&"))
+                };
+
+                let mut uri = format!("hysteria2://{}@{}:{}{}", password, address, port, query);
+
+                if !tag.is_empty() {
+                    uri.push('#');
+                    uri.push_str(&urlencoding::encode(tag));
+                }
+                uri
+            }
+            ServerConfig::WireGuard {
+                tag,
+                address,
+                port,
+                secret_key,
+                public_key,
+                pre_shared_key,
+                local_address,
+                reserved,
+                mtu,
+            } => {
+                // Format: wireguard://privatekey@host:port?params#tag
+                let mut params = Vec::new();
+                params.push(format!("address={}", urlencoding::encode(local_address)));
+                params.push(format!("publickey={}", public_key));
+
+                if let Some(ref psk) = pre_shared_key {
+                    params.push(format!("presharedkey={}", psk));
+                }
+
+                params.push(format!("mtu={}", mtu));
+
+                if let Some(ref r) = reserved {
+                    params.push(format!("reserved={}", r));
+                }
+
+                let query = params.join("&");
+                let mut uri = format!("wireguard://{}@{}:{}?{}", secret_key, address, port, query);
+
+                if !tag.is_empty() {
+                    uri.push('#');
+                    uri.push_str(&urlencoding::encode(tag));
+                }
+                uri
+            }
+            ServerConfig::Socks {
+                tag,
+                address,
+                port,
+                username,
+                password,
+                version: _,
+            } => {
+                // Format: socks://base64(username:password)@host:port#tag
+                let mut uri = String::from("socks://");
+
+                if let (Some(u), Some(p)) = (username, password) {
+                    let credentials = format!("{}:{}", u, p);
+                    let encoded = BASE64_STANDARD.encode(credentials);
+                    uri.push_str(&encoded);
+                    uri.push('@');
+                }
+
+                uri.push_str(&format!("{}:{}#", address, port));
+
+                if !tag.is_empty() {
+                    uri.push_str(&urlencoding::encode(tag));
+                } else {
+                    uri.pop(); // Remove trailing #
+                }
+
+                uri
+            }
+            ServerConfig::Http {
+                tag,
+                address,
+                port,
+                username,
+                password,
+                tls,
+            } => {
+                // Format: http[s]://[username:password@]host:port#tag
+                let scheme = if *tls { "https" } else { "http" };
+                let mut uri = format!("{}://", scheme);
+
+                if let (Some(u), Some(p)) = (username, password) {
+                    uri.push_str(&urlencoding::encode(u));
+                    uri.push(':');
+                    uri.push_str(&urlencoding::encode(p));
+                    uri.push('@');
+                }
+
+                uri.push_str(&format!("{}:{}#", address, port));
+
+                if !tag.is_empty() {
+                    uri.push_str(&urlencoding::encode(tag));
+                } else {
+                    uri.pop(); // Remove trailing #
+                }
+
+                uri
+            }
         }
     }
 }

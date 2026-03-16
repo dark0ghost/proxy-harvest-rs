@@ -183,6 +183,8 @@ mod tests {
                 port: 8388,
                 method: "aes-256-gcm".to_string(),
                 password: "test".to_string(),
+                plugin: None,
+                plugin_opts: None,
             },
             ServerConfig::Shadowsocks {
                 tag: "normal-server".to_string(),
@@ -190,6 +192,8 @@ mod tests {
                 port: 8388,
                 method: "aes-256-gcm".to_string(),
                 password: "test".to_string(),
+                plugin: None,
+                plugin_opts: None,
             },
         ];
 
@@ -285,6 +289,8 @@ mod tests {
             port: 8388,
             method: "aes-256-gcm".to_string(),
             password: "test".to_string(),
+            plugin: None,
+            plugin_opts: None,
         }];
 
         let result = generate_routing(&proxy_servers).unwrap();
@@ -327,6 +333,8 @@ mod tests {
                 port: 8388,
                 method: "aes-256-gcm".to_string(),
                 password: "test".to_string(),
+                plugin: None,
+                plugin_opts: None,
             },
             ServerConfig::Vless {
                 tag: "cf-1".to_string(),
@@ -346,6 +354,8 @@ mod tests {
                 port: 8388,
                 method: "aes-256-gcm".to_string(),
                 password: "test".to_string(),
+                plugin: None,
+                plugin_opts: None,
             },
         ];
 
